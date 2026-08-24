@@ -33,7 +33,7 @@
 
 ## 2. Technology Stack
 
-- **Backend**: Java 25+, Spring Boot 3.3.3, Spring Data JPA, Spring Security 6, Hibernate, JJWT, Lombok, Bean Validation.
+- **Backend**: Node.js, CommonJS, Express, mysql2/promise, bcryptjs, jsonwebtoken, dotenv.
 - **Database**: MySQL 8+ (with in-memory H2 profile support for zero-config testing and local demo).
 - **Frontend**: HTML5, CSS3 (Custom Design System with Glassmorphism, CSS variables), JavaScript (ES6+ Modules), Bootstrap 5.3.3, Bootstrap Icons.
 - **Build Tool**: Apache Maven.
@@ -58,20 +58,24 @@ The application automatically seeds the database with realistic sample data:
 
 ## 4. Running the Application Locally
 
-### Option A: Using MySQL Database (Default)
-1. Ensure MySQL is running on port `3306` with database `parttimejob_db` (or set environment variables `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`).
-2. Run:
+### Node.js + MySQL (current backend)
+1. Install Node.js 18+ and MySQL 8+, then create the database: `CREATE DATABASE parttimejob_db;`.
+2. Copy `.env.example` to `.env` and set `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, and optional `PORT`/`RUN_SEED`.
+3. Install and run:
 ```bash
-mvn spring-boot:run
+npm install
+npm start
 ```
+The server automatically executes `src/main/resources/schema.sql` and, when `RUN_SEED=true`, safely executes `data.sql` with duplicate-safe inserts.
 
-### Option B: Standalone / In-Memory H2 Mode (Zero-Setup)
+### Legacy Java/H2 mode
+The original Java implementation remains untouched and can still be run with:
 If MySQL is not installed or you want a quick demo:
 ```bash
 mvn spring-boot:run -Dspring-boot.run.profiles=h2
 ```
 
-3. Open your browser and navigate to:
+Open your browser and navigate to:
 ```
 http://localhost:8080
 ```
