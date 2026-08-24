@@ -8,6 +8,7 @@ const App = {
   cachedJobs: [],
 
   init() {
+    this.applyTheme(localStorage.getItem('ptj_theme') || 'light');
     Auth.init();
     Notifications.init();
     this.bindGlobalEvents();
@@ -20,6 +21,23 @@ const App = {
     } else {
       this.navigate('home');
     }
+  },
+
+  applyTheme(theme) {
+    const isDark = theme === 'dark';
+    document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
+    document.querySelectorAll('.theme-toggle').forEach(button => {
+      button.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+      button.title = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+      const icon = button.querySelector('i');
+      if (icon) icon.className = isDark ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+    });
+  },
+
+  toggleTheme() {
+    const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('ptj_theme', nextTheme);
+    this.applyTheme(nextTheme);
   },
 
   bindGlobalEvents() {

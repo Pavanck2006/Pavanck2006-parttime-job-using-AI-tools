@@ -50,6 +50,10 @@
 
         <!-- Guest Nav -->
         <div id="guestNav" class="d-flex align-items-center gap-2">
+          <button class="btn btn-light btn-sm border theme-toggle" id="themeToggle" type="button" onclick="App.toggleTheme()" aria-label="Switch to dark mode" title="Switch to dark mode">
+            <i class="bi bi-moon-stars-fill" aria-hidden="true"></i>
+            <span class="visually-hidden">Switch theme</span>
+          </button>
           <button class="btn btn-outline-dark btn-sm px-3" onclick="App.openLoginModal()">
             <i class="bi bi-box-arrow-in-right me-1"></i>Sign In
           </button>
@@ -60,6 +64,10 @@
 
         <!-- Authenticated User Nav -->
         <div id="authNav" class="d-none d-flex align-items-center gap-3">
+          <button class="btn btn-light btn-sm border theme-toggle" id="themeToggleAuth" type="button" onclick="App.toggleTheme()" aria-label="Switch to dark mode" title="Switch to dark mode">
+            <i class="bi bi-moon-stars-fill" aria-hidden="true"></i>
+            <span class="visually-hidden">Switch theme</span>
+          </button>
           <!-- Notification Bell -->
           <div class="dropdown">
             <button class="btn btn-light btn-sm position-relative rounded-circle p-2 border" id="notifDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false">

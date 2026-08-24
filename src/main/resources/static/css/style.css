@@ -58,6 +58,85 @@
   --radius-xl: 24px;
 }
 
+:root[data-theme="dark"] {
+  --light-bg: #111827;
+  --light-surface: #1f2937;
+  --light-border: #374151;
+  --text-muted: #9ca3af;
+  --text-dark: #f3f4f6;
+  --primary-light: #312e81;
+  --secondary-light: #164e63;
+  --accent-emerald-light: #064e3b;
+  --accent-amber-light: #78350f;
+  --accent-rose-light: #881337;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.35), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 25px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.25);
+}
+
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] .modal-content,
+:root[data-theme="dark"] .dropdown-menu,
+:root[data-theme="dark"] .accordion-item {
+  background-color: var(--light-surface);
+  color: var(--text-dark);
+}
+
+:root[data-theme="dark"] .navbar-custom,
+:root[data-theme="dark"] .hero-section {
+  background: #111827;
+  border-color: var(--light-border);
+}
+
+:root[data-theme="dark"] .search-box-card,
+:root[data-theme="dark"] .feature-pill,
+:root[data-theme="dark"] .job-card,
+:root[data-theme="dark"] .metric-card,
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] .table {
+  background-color: var(--light-surface);
+  color: var(--text-dark);
+  border-color: var(--light-border);
+}
+
+:root[data-theme="dark"] .text-dark,
+:root[data-theme="dark"] .navbar-custom .nav-link,
+:root[data-theme="dark"] .feature-pill,
+:root[data-theme="dark"] .form-label {
+  color: var(--text-dark) !important;
+}
+
+:root[data-theme="dark"] .form-control,
+:root[data-theme="dark"] .form-select,
+:root[data-theme="dark"] textarea {
+  background-color: #111827;
+  color: var(--text-dark);
+  border-color: var(--light-border);
+}
+
+:root[data-theme="dark"] .table {
+  --bs-table-color: var(--text-dark);
+  --bs-table-bg: var(--light-surface);
+  --bs-table-border-color: var(--light-border);
+}
+
+:root[data-theme="dark"] .btn-light {
+  background-color: #374151;
+  color: var(--text-dark);
+  border-color: #4b5563;
+}
+
+:root[data-theme="dark"] .btn-outline-dark {
+  color: var(--text-dark);
+  border-color: #6b7280;
+}
+
+:root[data-theme="dark"] .hero-title {
+  background: linear-gradient(135deg, #f3f4f6 30%, #a5b4fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
 body {
   font-family: var(--font-primary);
   background-color: var(--light-bg);
