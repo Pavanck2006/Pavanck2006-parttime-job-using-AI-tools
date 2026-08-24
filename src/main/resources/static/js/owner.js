@@ -10,6 +10,7 @@ const Owner = {
       await this.loadProfile();
       await this.loadMyJobs();
       await this.loadPayments();
+      await this.loadComplaints();
     } catch (err) {
       console.error('Error loading owner dashboard:', err);
     }
@@ -406,6 +407,64 @@ const Owner = {
       `).join('');
     } catch (err) {
       container.innerHTML = `<tr><td colspan="6" class="text-center p-3 text-danger">Failed to load payments</td></tr>`;
+    }
+  },
+
+  async loadComplaints() {
+    const container = document.getElementById('owComplaintsList');
+    if (!container) return;
+
+    try {
+      container.innerHTML = '<div class="text-center p-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading complaints...</div>';
+      const complaints = await API.owner.getComplaints();
+
+      if (!complaints || complaints.length === 0) {
+        container.innerHTML = '<div class="text-center p-4 text-muted"><i class="bi bi-chat-square-check fs-2 d-block mb-2"></i>No student complaints have been received.</div>';
+        return;
+      }
+
+      container.innerHTML = complaints.map(report => `
+        <article class="card border mb-3 shadow-sm">
+          <div class="card-body">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+              <div>
+                <span class="badge bg-danger-subtle text-danger mb-2">${App.escapeHtml(report.reportType || 'Complaint')}</span>
+                <h6 class="fw-bold mb-1">${App.escapeHtml(report.jobTitle || 'Job not available')}</h6>
+                <small class="text-muted">Reported ${App.formatDate(report.createdAt)}${report.workArea ? ` &middot; ${App.escapeHtml(report.workArea)}` : ''}</small>
+              </div>
+              <span class="badge ${report.status === 'RESOLVED' ? 'bg-success' : 'bg-warning text-dark'}">${App.escapeHtml(report.status || 'PENDING')}</span>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <div class="p-3 bg-light rounded h-100">
+                  <div class="small text-muted mb-1">Student details</div>
+                  <div class="fw-bold">${App.escapeHtml(report.studentName || 'Student')}</div>
+                  <div class="small mt-1"><i class="bi bi-telephone me-1"></i><a href="tel:${App.escapeHtml(report.studentPhone || '')}">${App.escapeHtml(report.studentPhone || 'Phone unavailable')}</a></div>
+                  <div class="small"><i class="bi bi-envelope me-1"></i><a href="mailto:${App.escapeHtml(report.studentEmail || '')}">${App.escapeHtml(report.studentEmail || 'Email unavailable')}</a></div>
+                  <div class="small text-muted mt-1">Skills: ${App.escapeHtml(report.studentSkills || 'Not provided')}</div>
+                  <div class="small text-muted">Area: ${App.escapeHtml(report.studentArea || 'Not provided')}</div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="p-3 bg-light rounded h-100">
+                  <div class="small text-muted mb-1">Payment and application</div>
+                  <div class="small">Expected: <strong>₹${App.escapeHtml(report.expectedAmount ?? 'Not provided')}</strong></div>
+                  <div class="small">Received: <strong>₹${App.escapeHtml(report.receivedAmount ?? '0')}</strong></div>
+                  <div class="small">Application: <strong>${App.escapeHtml(report.applicationStatus || 'Not available')}</strong></div>
+                  <div class="small">Payment status: <strong>${App.escapeHtml(report.applicationPaymentStatus || 'Not available')}</strong></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-2"><strong>Student&apos;s message:</strong> <span class="text-muted">${App.escapeHtml(report.description || 'No description provided')}</span></div>
+            <div class="small text-muted mb-3"><strong>Evidence / additional notes:</strong> ${App.escapeHtml(report.evidenceNotes || 'None provided')}</div>
+            <div class="alert alert-info py-2 mb-0 small"><i class="bi bi-chat-dots me-1"></i>Contact the student by phone or email above to discuss the issue, then cooperate with the platform admin review.</div>
+          </div>
+        </article>
+      `).join('');
+    } catch (err) {
+      container.innerHTML = `<div class="text-center text-danger p-3">Failed to load complaints: ${App.escapeHtml(err.message)}</div>`;
     }
   }
 };

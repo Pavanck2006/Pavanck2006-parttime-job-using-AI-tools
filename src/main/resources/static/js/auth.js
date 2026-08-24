@@ -105,9 +105,10 @@ const Auth = {
     };
 
     if (role === 'ROLE_STUDENT') {
-      payload.collegeName = document.getElementById('regCollege').value.trim();
       payload.preferredArea = document.getElementById('regPrefArea').value.trim();
-      payload.skills = document.getElementById('regSkills').value.trim();
+      payload.skills = Array.from(document.querySelectorAll('.reg-skill:checked'))
+        .map(skill => skill.value)
+        .join(', ');
     } else {
       payload.cateringName = document.getElementById('regCateringName').value.trim();
       payload.businessAddress = document.getElementById('regBusinessAddress').value.trim();

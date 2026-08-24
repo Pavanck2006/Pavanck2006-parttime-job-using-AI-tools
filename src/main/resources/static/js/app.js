@@ -507,7 +507,7 @@ const App = {
       };
 
       await API.reports.create(payload);
-      App.showToast('Dispute reported to administrators. We will investigate and contact you.', 'warning');
+      App.showToast('Complaint sent to the owner and platform administrators.', 'warning');
 
       const modalEl = document.getElementById('disputeModal');
       const modal = bootstrap.Modal.getInstance(modalEl);

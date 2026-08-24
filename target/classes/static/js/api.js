@@ -220,6 +220,9 @@ const API = {
     },
     getPayments() {
       return API.request('/owner/payments');
+    },
+    getComplaints() {
+      return API.request('/owner/complaints');
     }
   },
 

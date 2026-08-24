@@ -81,9 +81,9 @@ const Notifications = {
       }
 
       listEl.innerHTML = items.map(n => `
-        <div class="notif-item ${!n.read ? 'unread' : ''}" onclick="Notifications.handleNotifClick(${n.id}, '${n.type}')">
+        <div class="notif-item ${!n.isRead ? 'unread' : ''}" onclick="Notifications.handleNotifClick(${n.id}, '${n.type}')">
           <div class="d-flex justify-content-between align-items-start mb-1">
-            <h6 class="mb-0 fw-bold ${!n.read ? 'text-primary' : 'text-dark'}" style="font-size: 0.9rem;">${App.escapeHtml(n.title)}</h6>
+            <h6 class="mb-0 fw-bold ${!n.isRead ? 'text-primary' : 'text-dark'}" style="font-size: 0.9rem;">${App.escapeHtml(n.title)}</h6>
             <small class="text-muted" style="font-size: 0.75rem;">${App.formatTimeAgo(n.createdAt)}</small>
           </div>
           <p class="mb-1 text-muted" style="font-size: 0.825rem; line-height: 1.35;">${App.escapeHtml(n.message)}</p>
