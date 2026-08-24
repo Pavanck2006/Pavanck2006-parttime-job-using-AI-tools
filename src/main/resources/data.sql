@@ -7,7 +7,7 @@
 
 -- 1. Insert Admin User
 INSERT IGNORE INTO users (id, email, password_hash, full_name, phone, role, is_active, is_suspended)
-VALUES (1, 'admin@parttimejob.com', '$2a$10$VjQ30o7JmN2Gz1jC0j3gV.6e9Z299mNqYhMekY360jM4fW16lq2q2', 'System Administrator', '+919876543210', 'ROLE_ADMIN', TRUE, FALSE);
+VALUES (1, 'admin@parttimejob.com', '$2a$10$F2EEUqTZOC6eGBLn9ridOeACEZSpw/zWzzgaACxGV5vGu20MXKrjS', 'System Administrator', '+919876543210', 'ROLE_ADMIN', TRUE, FALSE);
 
 -- 2. Insert Catering Owners
 INSERT IGNORE INTO users (id, email, password_hash, full_name, phone, role, is_active, is_suspended)

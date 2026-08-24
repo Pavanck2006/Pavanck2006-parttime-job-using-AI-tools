@@ -279,6 +279,23 @@ const API = {
     },
     getMyReports() {
       return API.request('/reports/my-reports');
+    },
+    withdraw(reportId) {
+      return API.request(`/reports/${reportId}`, {
+        method: 'DELETE'
+      });
+    }
+  },
+
+  chat: {
+    getMessages(reportId) {
+      return API.request(`/chat/${reportId}/messages`);
+    },
+    sendMessage(reportId, message) {
+      return API.request(`/chat/${reportId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ message })
+      });
     }
   },
 

@@ -11,6 +11,7 @@ const App = {
     this.applyTheme(localStorage.getItem('ptj_theme') || 'light');
     Auth.init();
     Notifications.init();
+    Chat.init();
     this.bindGlobalEvents();
     this.loadPublicJobs();
     
@@ -38,6 +39,59 @@ const App = {
     const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
     localStorage.setItem('ptj_theme', nextTheme);
     this.applyTheme(nextTheme);
+  },
+
+  openSettingsSection(section) {
+    const user = API.getCurrentUser();
+    if (!user) return;
+    this.navigate('settings');
+    this.prepareSettingsPage();
+    this.showSettingsPanel(section);
+  },
+
+  prepareSettingsPage() {
+    const content = document.getElementById('settingsContent');
+    if (!content || content.dataset.ready) return;
+    const user = API.getCurrentUser();
+    if (!user) return;
+    const prefix = user.role === 'ROLE_OWNER' ? 'ow' : 'st';
+    const panels = [`${prefix}-tab-profile`, `${prefix}-tab-payments`, ...(user.role === 'ROLE_STUDENT' ? ['st-tab-applications'] : []), user.role === 'ROLE_OWNER' ? 'ow-tab-complaints' : 'st-tab-reports', user.role === 'ROLE_OWNER' ? 'ow-tab-chat' : 'st-tab-chat'];
+    panels.forEach(id => {
+      const panel = document.getElementById(id);
+      if (panel) content.appendChild(panel);
+    });
+    content.dataset.ready = 'true';
+  },
+
+  showSettingsPanel(section) {
+    const user = API.getCurrentUser();
+    if (!user) return;
+    const prefix = user.role === 'ROLE_OWNER' ? 'ow' : 'st';
+    const tabMap = {
+      profile: `${prefix}-tab-profile`,
+      payments: `${prefix}-tab-payments`,
+      applications: 'st-tab-applications',
+      complaints: user.role === 'ROLE_OWNER' ? 'ow-tab-complaints' : 'st-tab-reports',
+      chat: user.role === 'ROLE_OWNER' ? 'ow-tab-chat' : 'st-tab-chat'
+    };
+    this.prepareSettingsPage();
+    const target = document.getElementById(tabMap[section]);
+    if (target) {
+      document.querySelectorAll('#settingsContent .tab-pane').forEach(panel => {
+        const active = panel === target;
+        panel.hidden = !active;
+        panel.style.display = active ? 'block' : 'none';
+        panel.classList.toggle('d-none', !active);
+        panel.classList.toggle('show', active);
+        panel.classList.toggle('active', active);
+      });
+      document.querySelectorAll('.settings-nav').forEach(button => button.classList.toggle('active', button.dataset.settingsPanel === section));
+      if (section === 'complaints' && user.role === 'ROLE_OWNER') Owner.loadComplaints();
+      if (section === 'applications' && user.role === 'ROLE_STUDENT') Student.loadApplications();
+      if (section === 'profile') user.role === 'ROLE_OWNER' ? Owner.loadProfile() : Student.loadProfile();
+      if (section === 'payments') user.role === 'ROLE_OWNER' ? Owner.loadPayments() : Student.loadPayments();
+      if (section === 'chat') Chat.loadReports(user.role === 'ROLE_OWNER' ? 'owner' : 'student');
+    }
   },
 
   bindGlobalEvents() {
@@ -476,9 +530,22 @@ const App = {
     document.getElementById('disputeReceivedAmount').value = '0';
     document.getElementById('disputeDescription').value = '';
     document.getElementById('disputeEvidence').value = '';
+    this.toggleComplaintAmounts(document.getElementById('disputeTypeSelect').value);
 
     const modal = new bootstrap.Modal(document.getElementById('disputeModal'));
     modal.show();
+  },
+
+  toggleComplaintAmounts(reportType) {
+    const amountsRow = document.getElementById('disputeAmountsRow');
+    const expectedAmount = document.getElementById('disputeExpectedAmount');
+    const receivedAmount = document.getElementById('disputeReceivedAmount');
+    const isPaymentComplaint = reportType === 'PAYMENT_NOT_RECEIVED' || reportType === 'PAYMENT_PARTIALLY_RECEIVED';
+    amountsRow?.classList.toggle('d-none', !isPaymentComplaint);
+    if (!isPaymentComplaint) {
+      if (expectedAmount) expectedAmount.value = '';
+      if (receivedAmount) receivedAmount.value = '0';
+    }
   },
 
   async submitDispute(e) {

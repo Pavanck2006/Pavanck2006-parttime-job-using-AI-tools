@@ -75,6 +75,10 @@ const Notifications = {
       listEl.innerHTML = '<div class="p-3 text-center text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading notifications...</div>';
       const items = await API.notifications.getMyNotifications();
 
+      if (items?.some(item => item.type === 'REPORT_WITHDRAWN') && typeof Owner !== 'undefined') {
+        Owner.loadComplaints();
+      }
+
       if (!items || items.length === 0) {
         listEl.innerHTML = '<div class="p-4 text-center text-muted"><i class="bi bi-bell-slash fs-3 d-block mb-2"></i>No notifications yet</div>';
         return;

@@ -20,7 +20,7 @@
   <!-- ========================================================================= -->
   <nav class="navbar navbar-expand-lg navbar-custom sticky-top">
     <div class="container">
-      <a class="navbar-brand d-flex align-items-center gap-2" href="javascript:void(0)" onclick="App.navigate('home')">
+      <a class="navbar-brand d-flex align-items-center gap-2" href="javascript:void(0)" onclick="App.openRoleDashboard()" title="Open dashboard">
         <span class="brand-badge"><i class="bi bi-briefcase-fill"></i> PartTime</span>
         <span class="fw-bold fs-4 text-dark">Job</span>
       </a>
@@ -85,11 +85,6 @@
             </div>
           </div>
 
-          <!-- Go to Dashboard button -->
-          <button class="btn btn-primary-custom btn-sm d-none" id="dashboardNavBtn" onclick="App.openRoleDashboard()">
-            <i class="bi bi-speedometer2 me-1"></i>Dashboard
-          </button>
-
           <!-- User Menu Dropdown -->
           <div class="dropdown">
             <button class="btn btn-light btn-sm dropdown-toggle border d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown">
@@ -103,11 +98,43 @@
               <li><a class="dropdown-item text-danger" href="javascript:void(0)" onclick="Auth.logout()"><i class="bi bi-box-arrow-right me-2"></i>Sign Out</a></li>
             </ul>
           </div>
+
+          <div class="dropdown">
+            <button class="btn btn-light btn-sm border rounded-circle p-2" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Open settings" title="Settings">
+              <i class="bi bi-gear-fill"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm" id="settingsMenu">
+              <li><h6 class="dropdown-header"><i class="bi bi-gear me-1"></i>Settings &amp; Account</h6></li>
+              <li><a class="dropdown-item" href="javascript:void(0)" onclick="App.openSettingsSection('profile')"><i class="bi bi-person-gear me-2 text-primary"></i>My Profile</a></li>
+              <li><a class="dropdown-item" href="javascript:void(0)" onclick="App.openSettingsSection('payments')"><i class="bi bi-wallet2 me-2 text-success"></i>Payment Management</a></li>
+              <li id="studentApplicationsSetting"><a class="dropdown-item" href="javascript:void(0)" onclick="App.openSettingsSection('applications')"><i class="bi bi-file-earmark-text me-2 text-primary"></i>My Applications</a></li>
+              <li><a class="dropdown-item" href="javascript:void(0)" onclick="App.openSettingsSection('complaints')"><i class="bi bi-shield-exclamation me-2 text-danger"></i>Complaints</a></li>
+              <li><a class="dropdown-item" href="javascript:void(0)" onclick="App.openSettingsSection('chat')"><i class="bi bi-chat-dots me-2 text-info"></i>Complaint Chat</a></li>
+            </ul>
+          </div>
         </div>
 
       </div>
     </div>
   </nav>
+
+  <main id="view-settings" class="view-section d-none py-5">
+    <div class="container">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div><span class="badge bg-primary-subtle text-primary border px-3 py-2 rounded-pill fw-bold">Account Center</span><h2 class="fw-bold mt-2 mb-1">Settings</h2><p class="text-muted mb-0">Manage your profile, payments, complaints, and conversations.</p></div>
+        <button class="btn btn-outline-primary" type="button" onclick="App.openRoleDashboard()"><i class="bi bi-arrow-left me-1"></i>Back to Dashboard</button>
+      </div>
+      <div class="settings-layout">
+        <aside class="settings-sidebar">
+          <button class="settings-nav active" data-settings-panel="profile" onclick="App.showSettingsPanel('profile')"><i class="bi bi-person-gear"></i><span>My Profile</span></button>
+          <button class="settings-nav" data-settings-panel="payments" onclick="App.showSettingsPanel('payments')"><i class="bi bi-wallet2"></i><span>Payments</span></button>
+          <button class="settings-nav" data-settings-panel="complaints" onclick="App.showSettingsPanel('complaints')"><i class="bi bi-shield-exclamation"></i><span>Complaints</span></button>
+          <button class="settings-nav" data-settings-panel="chat" onclick="App.showSettingsPanel('chat')"><i class="bi bi-chat-dots"></i><span>Complaint Chat</span></button>
+        </aside>
+        <section id="settingsContent" class="settings-content"></section>
+      </div>
+    </div>
+  </main>
 
   <!-- ========================================================================= -->
   <!-- VIEW 1: HOME / LANDING PAGE -->
@@ -586,23 +613,8 @@
           </button>
         </li>
         <li class="nav-item">
-          <button class="nav-link" data-bs-toggle="pill" data-bs-target="#st-tab-applications">
-            <i class="bi bi-file-earmark-text me-1"></i>My Applications
-          </button>
-        </li>
-        <li class="nav-item">
           <button class="nav-link" data-bs-toggle="pill" data-bs-target="#st-tab-completed">
             <i class="bi bi-check-all me-1"></i>Completed Shifts
-          </button>
-        </li>
-        <li class="nav-item">
-          <button class="nav-link" data-bs-toggle="pill" data-bs-target="#st-tab-payments">
-            <i class="bi bi-cash-stack me-1"></i>Payment Records
-          </button>
-        </li>
-        <li class="nav-item">
-          <button class="nav-link" data-bs-toggle="pill" data-bs-target="#st-tab-profile">
-            <i class="bi bi-person-gear me-1"></i>My Profile
           </button>
         </li>
       </ul>
@@ -684,7 +696,26 @@
           </div>
         </div>
 
-        <!-- 6. Profile Edit -->
+        <!-- 6. Complaints -->
+        <div class="tab-pane fade" id="st-tab-reports">
+          <div class="card p-4 border-0 shadow-sm">
+            <h5 class="fw-bold mb-1"><i class="bi bi-shield-exclamation text-danger me-2"></i>My Complaints</h5>
+            <p class="text-muted small mb-3">Discuss the issue with the owner, review the admin response, and withdraw your complaint when the matter is solved.</p>
+            <div id="stReportsList"></div>
+          </div>
+        </div>
+
+        <!-- 7. Complaint Chat -->
+        <div class="tab-pane fade" id="st-tab-chat">
+          <div class="card chat-card border-0 shadow-sm">
+            <div class="chat-header"><div class="chat-avatar"><i class="bi bi-building"></i></div><div><h5 class="fw-bold mb-1">Discuss with the Owner</h5><p class="text-muted small mb-0">Discuss your complaint privately and clearly.</p></div></div>
+            <div class="chat-controls"><label class="form-label small fw-semibold mb-1" for="studentChatReport">Conversation</label><select id="studentChatReport" class="form-select" onchange="Chat.selectReport('student')"><option value="">Choose a complaint</option></select></div>
+            <div id="studentChatMessages" class="chat-messages"><div class="chat-empty"><i class="bi bi-chat-square-text"></i><span>Choose a complaint to start or continue the discussion.</span></div></div>
+            <div class="chat-composer"><input id="studentChatInput" class="form-control" maxlength="2000" placeholder="Write a message to the owner..."><button class="btn btn-primary" type="button" onclick="Chat.send('student')" aria-label="Send message" title="Send message"><i class="bi bi-send-fill"></i></button></div>
+          </div>
+        </div>
+
+        <!-- 8. Profile Edit -->
         <div class="tab-pane fade" id="st-tab-profile">
           <div class="card p-4 border-0 shadow-sm max-w-800 mx-auto">
             <h5 class="fw-bold mb-3"><i class="bi bi-person-gear text-primary me-2"></i>Update Student Profile</h5>
@@ -740,8 +771,8 @@
       <div class="card p-4 mb-4 border-0 shadow-sm rounded-4" style="background: var(--grad-dark); color: white;">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
           <div>
+
             <div class="d-flex align-items-center gap-2 mb-1">
-              <h2 class="fw-bold mb-0" id="owWelcomeCatering">Catering Company</h2>
               <span id="owVerificationBadge" class="unverified-badge">Pending Verification</span>
             </div>
             <div class="text-white-50 small">Owner: <span id="owOwnerName">Owner</span></div>
@@ -832,21 +863,6 @@
         <li class="nav-item">
           <button class="nav-link" data-bs-toggle="pill" data-bs-target="#ow-tab-create">
             <i class="bi bi-plus-circle me-1"></i>Create New Job
-          </button>
-        </li>
-        <li class="nav-item">
-          <button class="nav-link" data-bs-toggle="pill" data-bs-target="#ow-tab-payments">
-            <i class="bi bi-wallet2 me-1"></i>Payment Management
-          </button>
-        </li>
-        <li class="nav-item">
-          <button class="nav-link" data-bs-toggle="pill" data-bs-target="#ow-tab-complaints">
-            <i class="bi bi-chat-square-text me-1"></i>Complaints
-          </button>
-        </li>
-        <li class="nav-item">
-          <button class="nav-link" data-bs-toggle="pill" data-bs-target="#ow-tab-profile">
-            <i class="bi bi-building-gear me-1"></i>Catering Profile
           </button>
         </li>
       </ul>
@@ -999,7 +1015,17 @@
           </div>
         </div>
 
-        <!-- 5. Profile -->
+        <!-- 5. Complaint Chat -->
+        <div class="tab-pane fade" id="ow-tab-chat">
+          <div class="card chat-card border-0 shadow-sm">
+            <div class="chat-header"><div class="chat-avatar chat-avatar-owner"><i class="bi bi-person"></i></div><div><h5 class="fw-bold mb-1">Discuss with Student</h5><p class="text-muted small mb-0">Discuss the payment or catering concern privately.</p></div></div>
+            <div class="chat-controls"><label class="form-label small fw-semibold mb-1" for="ownerChatReport">Conversation</label><select id="ownerChatReport" class="form-select" onchange="Chat.selectReport('owner')"><option value="">Choose a complaint</option></select></div>
+            <div id="ownerChatMessages" class="chat-messages"><div class="chat-empty"><i class="bi bi-chat-square-text"></i><span>Choose a complaint to start or continue the discussion.</span></div></div>
+            <div class="chat-composer"><input id="ownerChatInput" class="form-control" maxlength="2000" placeholder="Write a message to the student..."><button class="btn btn-primary" type="button" onclick="Chat.send('owner')" aria-label="Send message" title="Send message"><i class="bi bi-send-fill"></i></button></div>
+          </div>
+        </div>
+
+        <!-- 6. Profile -->
         <div class="tab-pane fade" id="ow-tab-profile">
           <div class="card p-4 border-0 shadow-sm max-w-800 mx-auto">
             <h5 class="fw-bold mb-3"><i class="bi bi-building-gear text-primary me-2"></i>Catering Company Profile</h5>
@@ -1502,7 +1528,7 @@
 
             <div class="mb-3">
               <label class="form-label small fw-semibold">Complaint Type *</label>
-              <select id="disputeTypeSelect" class="form-select" required>
+              <select id="disputeTypeSelect" class="form-select" onchange="App.toggleComplaintAmounts(this.value)" required>
                 <option value="PAYMENT_NOT_RECEIVED">Payment Not Received</option>
                 <option value="PAYMENT_PARTIALLY_RECEIVED">Payment Partially Received</option>
                 <option value="OWNER_BEHAVIOUR">Owner Misbehavior / Harassment</option>
@@ -1512,7 +1538,7 @@
               </select>
             </div>
 
-            <div class="row g-2 mb-3">
+            <div class="row g-2 mb-3" id="disputeAmountsRow">
               <div class="col-6">
                 <label class="form-label small fw-semibold">Expected Amount (₹)</label>
                 <input type="number" id="disputeExpectedAmount" class="form-control">
@@ -1589,6 +1615,7 @@
   <script src="/js/notifications.js"></script>
   <script src="/js/student.js"></script>
   <script src="/js/owner.js"></script>
+  <script src="/js/chat.js"></script>
   <script src="/js/admin.js"></script>
   <script src="/js/app.js"></script>
 </body>

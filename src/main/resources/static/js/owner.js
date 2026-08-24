@@ -449,7 +449,8 @@ const Owner = {
               <div class="col-md-6">
                 <div class="p-3 bg-light rounded h-100">
                   <div class="small text-muted mb-1">Payment and application</div>
-                  <div class="small">Expected: <strong>₹${App.escapeHtml(report.expectedAmount ?? 'Not provided')}</strong></div>
+                  <div class="small">Actual Amount: <strong class="text-primary">₹${App.escapeHtml(report.assignedAmount ?? 'Not available')}</strong></div>
+                  <div class="small">Expected in complaint: <strong>₹${App.escapeHtml(report.expectedAmount ?? 'Not provided')}</strong></div>
                   <div class="small">Received: <strong>₹${App.escapeHtml(report.receivedAmount ?? '0')}</strong></div>
                   <div class="small">Application: <strong>${App.escapeHtml(report.applicationStatus || 'Not available')}</strong></div>
                   <div class="small">Payment status: <strong>${App.escapeHtml(report.applicationPaymentStatus || 'Not available')}</strong></div>

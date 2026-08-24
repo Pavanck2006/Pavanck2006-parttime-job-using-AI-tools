@@ -153,11 +153,13 @@ const Auth = {
     const userDisplayName = document.getElementById('userDisplayName');
     const userRoleBadge = document.getElementById('userRoleBadge');
     const dashboardNavBtn = document.getElementById('dashboardNavBtn');
+    const studentApplicationsSetting = document.getElementById('studentApplicationsSetting');
 
     if (user && API.isAuthenticated()) {
       guestNav?.classList.add('d-none');
       authNav?.classList.remove('d-none');
       dashboardNavBtn?.classList.remove('d-none');
+      studentApplicationsSetting?.classList.toggle('d-none', user.role !== 'ROLE_STUDENT');
 
       if (userDisplayName) userDisplayName.innerText = user.fullName;
 
@@ -180,6 +182,7 @@ const Auth = {
       guestNav?.classList.remove('d-none');
       authNav?.classList.add('d-none');
       dashboardNavBtn?.classList.add('d-none');
+      studentApplicationsSetting?.classList.add('d-none');
       Notifications.stopPolling();
     }
   }

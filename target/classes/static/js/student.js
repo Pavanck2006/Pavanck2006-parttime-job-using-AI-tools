@@ -11,6 +11,7 @@ const Student = {
       await this.loadAcceptedJobs();
       await this.loadCompletedJobs();
       await this.loadPayments();
+      await this.loadReports();
       await this.loadProfile();
     } catch (err) {
       console.error('Error loading student dashboard:', err);
@@ -242,6 +243,45 @@ const Student = {
       `).join('');
     } catch (err) {
       container.innerHTML = `<tr><td colspan="6" class="text-center p-3 text-danger">Failed to load completed jobs</td></tr>`;
+    }
+  },
+
+  async loadReports() {
+    const container = document.getElementById('stReportsList');
+    if (!container) return;
+
+    try {
+      const reports = await API.reports.getMyReports();
+      if (!reports || reports.length === 0) {
+        container.innerHTML = '<div class="text-center p-4 text-muted">You have not submitted any complaints.</div>';
+        return;
+      }
+      container.innerHTML = reports.map(report => `
+        <article class="card border mb-3 shadow-sm">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+              <div><span class="badge bg-danger-subtle text-danger">${App.escapeHtml(report.report_type || 'Complaint')}</span><h6 class="fw-bold mt-2 mb-0">${App.escapeHtml(report.description || 'Complaint')}</h6></div>
+              <span class="badge ${report.status === 'RESOLVED' ? 'bg-success' : 'bg-warning text-dark'}">${App.escapeHtml(report.status || 'PENDING')}</span>
+            </div>
+            <div class="small text-muted mb-3">Expected: ₹${App.escapeHtml(report.expected_amount ?? 'Not provided')} &middot; Received: ₹${App.escapeHtml(report.received_amount ?? '0')} &middot; Submitted: ${App.formatDate(report.created_at)}</div>
+            ${report.admin_remarks ? `<div class="alert alert-info py-2 small mb-3"><strong>Admin response:</strong> ${App.escapeHtml(report.admin_remarks)}</div>` : ''}
+            <button class="btn btn-outline-danger btn-sm" type="button" onclick="Student.withdrawReport(${report.id})"><i class="bi bi-arrow-counterclockwise me-1"></i>Withdraw Complaint</button>
+          </div>
+        </article>
+      `).join('');
+    } catch (err) {
+      container.innerHTML = `<div class="text-center text-danger p-3">Failed to load complaints: ${App.escapeHtml(err.message)}</div>`;
+    }
+  },
+
+  async withdrawReport(reportId) {
+    if (!confirm('Withdraw this complaint? It will be removed from the owner and admin lists.')) return;
+    try {
+      await API.reports.withdraw(reportId);
+      App.showToast('Complaint withdrawn successfully.', 'success');
+      await this.loadReports();
+    } catch (err) {
+      App.showToast(err.message || 'Failed to withdraw complaint', 'danger');
     }
   },
 

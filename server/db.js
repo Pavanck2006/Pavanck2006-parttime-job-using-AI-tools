@@ -12,6 +12,16 @@ async function initializeDatabase() {
   await setup.end();
   const schema = path.join(__dirname, '..', 'src', 'main', 'resources', 'schema.sql');
   for (const statement of statements(schema)) await pool.query(statement);
+  await pool.query(`CREATE TABLE IF NOT EXISTS complaint_messages (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    report_id BIGINT NOT NULL,
+    sender_id BIGINT NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_chat_report FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE,
+    CONSTRAINT fk_chat_sender FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_chat_report_created (report_id, created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
   if (process.env.RUN_SEED !== 'false') {
     const seed = path.join(__dirname, '..', 'src', 'main', 'resources', 'data.sql');
     if (fs.existsSync(seed)) for (const statement of statements(seed)) try { await pool.query(statement); } catch (e) { if (![1062, 1451, 1452].includes(e.errno)) throw e; }
