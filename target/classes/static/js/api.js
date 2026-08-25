@@ -77,6 +77,12 @@ const API = {
 
   // Auth Endpoints
   auth: {
+    requestOtp(payload) {
+      return API.request('/auth/request-otp', { method: 'POST', body: JSON.stringify(payload) });
+    },
+    verifyOtp(payload) {
+      return API.request('/auth/verify-otp', { method: 'POST', body: JSON.stringify(payload) });
+    },
     login(email, password) {
       return API.request('/auth/login', {
         method: 'POST',

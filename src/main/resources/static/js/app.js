@@ -195,6 +195,14 @@ const App = {
   openRegisterModal(role = 'ROLE_STUDENT') {
     const modalEl = document.getElementById('registerModal');
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    document.getElementById('regVerificationId').value = '';
+    document.getElementById('regEmailVerified').value = '';
+    document.getElementById('regOtp').value = '';
+    document.getElementById('regOtp').disabled = false;
+    document.getElementById('regOtpGroup').classList.add('d-none');
+    document.getElementById('verifyEmailBtn').disabled = false;
+    document.getElementById('verifyEmailBtn').innerHTML = '<i class="bi bi-shield-check me-1"></i>Verify Email';
+    document.getElementById('registerSubmitBtn').disabled = false;
     
     const radio = document.querySelector(`input[name="registerRole"][value="${role}"]`);
     if (radio) {

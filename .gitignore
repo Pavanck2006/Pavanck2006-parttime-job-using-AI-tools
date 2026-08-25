@@ -1,0 +1,13 @@
+# Build output
+target/
+
+# Local Node dependencies
+node_modules/
+
+# Local environment and logs
+.env
+*.log
+npm-debug.log*
+
+# IDE metadata
+.vscode/*.log

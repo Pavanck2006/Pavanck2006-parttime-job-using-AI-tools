@@ -1,7 +1,8 @@
 const Chat = {
   async init() {
-    await this.loadReports('student');
-    await this.loadReports('owner');
+    const user = API.getCurrentUser();
+    if (!user || !API.isAuthenticated()) return;
+    await this.loadReports(user.role === 'ROLE_OWNER' ? 'owner' : 'student');
   },
 
   async loadReports(role) {

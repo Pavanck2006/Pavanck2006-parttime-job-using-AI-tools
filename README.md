@@ -68,6 +68,8 @@ npm start
 ```
 The server automatically executes `src/main/resources/schema.sql` and, when `RUN_SEED=true`, safely executes `data.sql` with duplicate-safe inserts.
 
+During registration, users verify their email with a one-time 6-digit code. The code is sent only by email. Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM` before starting the server.
+
 ### Legacy Java/H2 mode
 The original Java implementation remains untouched and can still be run with:
 If MySQL is not installed or you want a quick demo:

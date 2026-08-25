@@ -95,7 +95,6 @@ const Auth = {
     const password = document.getElementById('regPassword').value;
     const phone = document.getElementById('regPhone').value.trim();
     const btn = document.getElementById('registerSubmitBtn');
-
     const payload = {
       fullName,
       email,
@@ -103,6 +102,25 @@ const Auth = {
       phone,
       role
     };
+
+    if (!document.getElementById('regVerificationId').value) {
+      try {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sending Code...';
+        const otp = await API.auth.requestOtp({email});
+        document.getElementById('regVerificationId').value = otp.verificationId;
+        document.getElementById('regOtpGroup').classList.remove('d-none');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-person-check me-2"></i>Create Account';
+        App.showToast('Verification code sent by email. Check your inbox.', 'info');
+      } catch (err) { btn.disabled = false; App.showToast(err.message || 'Could not send verification code', 'danger'); }
+      return;
+    }
+    if (document.getElementById('regEmailVerified').value !== 'true') {
+      App.showToast('Verify your email before creating the account.', 'warning');
+      return;
+    }
+    payload.verificationId = document.getElementById('regVerificationId').value;
 
     if (role === 'ROLE_STUDENT') {
       payload.preferredArea = document.getElementById('regPrefArea').value.trim();
@@ -138,6 +156,39 @@ const Auth = {
       btn.innerHTML = '<i class="bi bi-person-check me-2"></i>Create Account';
     }
   },
+
+  async handleVerifyEmail() {
+    const verificationId = document.getElementById('regVerificationId').value;
+    const otp = document.getElementById('regOtp').value.trim();
+    const btn = document.getElementById('verifyEmailBtn');
+    if (!verificationId) return App.showToast('Request a verification code first.', 'warning');
+    if (!/^\d{6}$/.test(otp)) return App.showToast('Enter the complete 6-digit OTP.', 'warning');
+    try {
+      btn.disabled = true;
+      const result = await API.auth.verifyOtp({verificationId, otp});
+      document.getElementById('regEmailVerified').value = 'true';
+      document.getElementById('regOtp').disabled = true;
+      document.getElementById('regOtpGroup').classList.add('d-none');
+      document.getElementById('registerSubmitBtn').disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Email Verified';
+      App.showToast(result?.message || 'Email verified successfully.', 'success');
+    } catch (err) {
+      btn.disabled = false;
+      App.showToast(err.message || 'Email verification failed', 'danger');
+    }
+  },
+
+  resendOtp() {
+    document.getElementById('regVerificationId').value = '';
+    document.getElementById('regEmailVerified').value = '';
+    document.getElementById('regOtp').value = '';
+    document.getElementById('regOtp').disabled = false;
+    document.getElementById('regOtpGroup').classList.add('d-none');
+    document.getElementById('verifyEmailBtn').disabled = false;
+    document.getElementById('verifyEmailBtn').innerHTML = '<i class="bi bi-shield-check me-1"></i>Verify Email';
+    document.getElementById('registerForm').requestSubmit();
+  },
+
 
   logout() {
     API.clearAuthData();
