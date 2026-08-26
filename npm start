@@ -1,0 +1,199 @@
+[1mdiff --git a/src/main/resources/static/js/chat.js b/src/main/resources/static/js/chat.js[m
+[1mindex 342b474..c3c175b 100644[m
+[1m--- a/src/main/resources/static/js/chat.js[m
+[1m+++ b/src/main/resources/static/js/chat.js[m
+[36m@@ -1,50 +1,177 @@[m
+ const Chat = {[m
+[32m+[m[32m  pollingIntervals: {},[m
+[32m+[m
+   async init() {[m
+     const user = API.getCurrentUser();[m
+     if (!user || !API.isAuthenticated()) return;[m
+[32m+[m
+     await this.loadReports(user.role === 'ROLE_OWNER' ? 'owner' : 'student');[m
+   },[m
+ [m
+   async loadReports(role) {[m
+[31m-    const select = document.getElementById(role === 'student' ? 'studentChatReport' : 'ownerChatReport');[m
+[32m+[m[32m    const select = document.getElementById([m
+[32m+[m[32m      role === 'student' ? 'studentChatReport' : 'ownerChatReport'[m
+[32m+[m[32m    );[m
+[32m+[m
+     if (!select) return;[m
+[32m+[m
+     try {[m
+[31m-      const reports = role === 'student' ? await API.reports.getMyReports() : await API.owner.getComplaints();[m
+[31m-      select.innerHTML = '<option value="">Choose a complaint</option>' + (reports || []).map(report => `<option value="${report.id}">${App.escapeHtml(report.report_type || report.reportType || 'Complaint')} - ${App.escapeHtml(report.description || 'Complaint').slice(0, 55)}</option>`).join('');[m
+[32m+[m[32m      const reports =[m
+[32m+[m[32m        role === 'student'[m
+[32m+[m[32m          ? await API.reports.getMyReports()[m
+[32m+[m[32m          : await API.owner.getComplaints();[m
+[32m+[m
+[32m+[m[32m      select.innerHTML =[m
+[32m+[m[32m        '<option value="">Choose a complaint</option>' +[m
+[32m+[m[32m        (reports || [])[m
+[32m+[m[32m          .map([m
+[32m+[m[32m            report =>[m
+[32m+[m[32m              `<option value="${report.id}">${App.escapeHtml([m
+[32m+[m[32m                report.report_type || report.reportType || 'Complaint'[m
+[32m+[m[32m              )} - ${App.escapeHtml([m
+[32m+[m[32m                report.description || 'Complaint'[m
+[32m+[m[32m              ).slice(0, 55)}</option>`[m
+[32m+[m[32m          )[m
+[32m+[m[32m          .join('');[m
+     } catch (error) {[m
+[31m-      select.innerHTML = '<option value="">Unable to load complaints</option>';[m
+[32m+[m[32m      select.innerHTML =[m
+[32m+[m[32m        '<option value="">Unable to load complaints</option>';[m
+     }[m
+   },[m
+ [m
+   async selectReport(role) {[m
+[31m-    const select = document.getElementById(role === 'student' ? 'studentChatReport' : 'ownerChatReport');[m
+[32m+[m[32m    const select = document.getElementById([m
+[32m+[m[32m      role === 'student' ? 'studentChatReport' : 'ownerChatReport'[m
+[32m+[m[32m    );[m
+[32m+[m
+     const reportId = select?.value;[m
+[31m-    const messages = document.getElementById(role === 'student' ? 'studentChatMessages' : 'ownerChatMessages');[m
+[32m+[m
+[32m+[m[32m    const messages = document.getElementById([m
+[32m+[m[32m      role === 'student' ? 'studentChatMessages' : 'ownerChatMessages'[m
+[32m+[m[32m    );[m
+[32m+[m
+     if (!messages) return;[m
+[32m+[m
+[32m+[m[32m    // Stop previous polling when changing complaint[m
+[32m+[m[32m    this.stopPolling(role);[m
+[32m+[m
+     if (!reportId) {[m
+[31m-      messages.innerHTML = '<div class="text-center text-muted p-4">Choose a complaint to start or continue the discussion.</div>';[m
+[32m+[m[32m      messages.innerHTML =[m
+[32m+[m[32m        '<div class="text-center text-muted p-4">Choose a complaint to start or continue the discussion.</div>';[m
+       return;[m
+     }[m
+[32m+[m
+[32m+[m[32m    await this.loadMessages(role, reportId, true);[m
+[32m+[m
+[32m+[m[32m    // Check for new messages every 1.5 seconds[m
+[32m+[m[32m    this.pollingIntervals[role] = setInterval(async () => {[m
+[32m+[m[32m      const currentReportId = document.getElementById([m
+[32m+[m[32m        role === 'student' ? 'studentChatReport' : 'ownerChatReport'[m
+[32m+[m[32m      )?.value;[m
+[32m+[m
+[32m+[m[32m      if (!currentReportId) {[m
+[32m+[m[32m        this.stopPolling(role);[m
+[32m+[m[32m        return;[m
+[32m+[m[32m      }[m
+[32m+[m
+[32m+[m[32m      await this.loadMessages(role, currentReportId, false);[m
+[32m+[m[32m    }, 1500);[m
+[32m+[m[32m  },[m
+[32m+[m
+[32m+[m[32m  async loadMessages(role, reportId, forceScroll = false) {[m
+[32m+[m[32m    const messages = document.getElementById([m
+[32m+[m[32m      role === 'student' ? 'studentChatMessages' : 'ownerChatMessages'[m
+[32m+[m[32m    );[m
+[32m+[m
+[32m+[m[32m    if (!messages) return;[m
+[32m+[m
+     try {[m
+       const items = await API.chat.getMessages(reportId);[m
+[31m-      messages.innerHTML = !items?.length ? '<div class="chat-empty"><i class="bi bi-chat-square-text"></i><span>No messages yet. Send the first message.</span></div>' : items.map(item => { const mine = item.senderId === API.getCurrentUser()?.id; return `<div class="chat-message ${mine ? 'mine' : 'theirs'}"><div class="chat-bubble"><div class="chat-sender">${App.escapeHtml(item.senderName)}</div><div>${App.escapeHtml(item.message)}</div></div><div class="chat-time">${App.formatTimeAgo(item.createdAt)}</div></div>`; }).join('');[m
+[31m-      messages.scrollTop = messages.scrollHeight;[m
+[32m+[m
+[32m+[m[32m      const newHTML = !items?.length[m
+[32m+[m[32m        ? '<div class="chat-empty"><i class="bi bi-chat-square-text"></i><span>No messages yet. Send the first message.</span></div>'[m
+[32m+[m[32m        : items[m
+[32m+[m[32m            .map(item => {[m
+[32m+[m[32m              const mine =[m
+[32m+[m[32m                item.senderId === API.getCurrentUser()?.id;[m
+[32m+[m
+[32m+[m[32m              return `[m
+[32m+[m[32m                <div class="chat-message ${mine ? 'mine' : 'theirs'}">[m
+[32m+[m[32m                  <div class="chat-bubble">[m
+[32m+[m[32m                    <div class="chat-sender">[m
+[32m+[m[32m                      ${App.escapeHtml(item.senderName)}[m
+[32m+[m[32m                    </div>[m
+[32m+[m[32m                    <div>[m
+[32m+[m[32m                      ${App.escapeHtml(item.message)}[m
+[32m+[m[32m                    </div>[m
+[32m+[m[32m                  </div>[m
+[32m+[m[32m                  <div class="chat-time">[m
+[32m+[m[32m                    ${App.formatTimeAgo(item.createdAt)}[m
+[32m+[m[32m                  </div>[m
+[32m+[m[32m                </div>[m
+[32m+[m[32m              `;[m
+[32m+[m[32m            })[m
+[32m+[m[32m            .join('');[m
+[32m+[m
+[32m+[m[32m      // Don't unnecessarily rebuild the chat if nothing changed[m
+[32m+[m[32m      if (messages.innerHTML !== newHTML) {[m
+[32m+[m[32m        const wasNearBottom =[m
+[32m+[m[32m          messages.scrollHeight -[m
+[32m+[m[32m            messages.scrollTop -[m
+[32m+[m[32m            messages.clientHeight <[m
+[32m+[m[32m          100;[m
+[32m+[m
+[32m+[m[32m        messages.innerHTML = newHTML;[m
+[32m+[m
+[32m+[m[32m        if (forceScroll || wasNearBottom) {[m
+[32m+[m[32m          messages.scrollTop = messages.scrollHeight;[m
+[32m+[m[32m        }[m
+[32m+[m[32m      }[m
+     } catch (error) {[m
+[31m-      messages.innerHTML = `<div class="text-center text-danger p-3">${App.escapeHtml(error.message)}</div>`;[m
+[32m+[m[32m      // Don't replace existing messages if a background request fails[m
+[32m+[m[32m      if (forceScroll) {[m
+[32m+[m[32m        messages.innerHTML = `<div class="text-center text-danger p-3">${App.escapeHtml([m
+[32m+[m[32m          error.message[m
+[32m+[m[32m        )}</div>`;[m
+[32m+[m[32m      }[m
+[32m+[m[32m    }[m
+[32m+[m[32m  },[m
+[32m+[m
+[32m+[m[32m  stopPolling(role) {[m
+[32m+[m[32m    if (this.pollingIntervals[role]) {[m
+[32m+[m[32m      clearInterval(this.pollingIntervals[role]);[m
+[32m+[m[32m      delete this.pollingIntervals[role];[m
+     }[m
+   },[m
+ [m
+   async send(role) {[m
+     const prefix = role === 'student' ? 'student' : 'owner';[m
+[31m-    const reportId = document.getElementById(`${prefix}ChatReport`)?.value;[m
+[31m-    const input = document.getElementById(`${prefix}ChatInput`);[m
+[32m+[m
+[32m+[m[32m    const reportId = document.getElementById([m
+[32m+[m[32m      `${prefix}ChatReport`[m
+[32m+[m[32m    )?.value;[m
+[32m+[m
+[32m+[m[32m    const input = document.getElementById([m
+[32m+[m[32m      `${prefix}ChatInput`[m
+[32m+[m[32m    );[m
+[32m+[m
+     if (!reportId || !input?.value.trim()) return;[m
+[32m+[m
+     try {[m
+[31m-      await API.chat.sendMessage(reportId, input.value.trim());[m
+[32m+[m[32m      await API.chat.sendMessage([m
+[32m+[m[32m        reportId,[m
+[32m+[m[32m        input.value.trim()[m
+[32m+[m[32m      );[m
+[32m+[m
+       input.value = '';[m
+[31m-      await this.selectReport(role);[m
+[32m+[m
+[32m+[m[32m      // Immediately show the newly sent message[m
+[32m+[m[32m      await this.loadMessages(role, reportId, true);[m
+     } catch (error) {[m
+[31m-      App.showToast(error.message || 'Unable to send message', 'danger');[m
+[32m+[m[32m      App.showToast([m
+[32m+[m[32m        error.message || 'Unable to send message',[m
+[32m+[m[32m        'danger'[m
+[32m+[m[32m      );[m
+     }[m
+   }[m
+[31m-};[m
+[32m+[m[32m};[m
+\ No newline at end of file[m
