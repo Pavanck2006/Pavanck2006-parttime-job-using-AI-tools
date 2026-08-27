@@ -762,6 +762,65 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
+// ─── FORGOT PASSWORD ───────────────────────────────────────────────────────
+
+const resetChallenges = new Map();
+
+app.post('/api/auth/forgot-password', async (req, res, next) => {
+  try {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail(res, 400, 'Enter a valid email address');
+    const [r] = await pool.query('SELECT id, email FROM users WHERE email=?', [email]);
+    if (!r[0]) return fail(res, 404, 'No account found with that email');
+    const id = crypto.randomUUID();
+    const code = String(crypto.randomInt(100000, 1000000));
+    await sendEmailOtp(email, code);
+    resetChallenges.set(id, {email, code, expiresAt: Date.now() + 10 * 60 * 1000, attempts: 0});
+    ok(res, {verificationId: id, expiresInSeconds: 600}, 'Password reset code sent to your email');
+  } catch (e) { next(e); }
+});
+
+app.post('/api/auth/forgot-password/verify', async (req, res, next) => {
+  try {
+    const challenge = resetChallenges.get(req.body.verificationId);
+    const otp = String(req.body.otp || '');
+    if (!challenge || challenge.expiresAt < Date.now()) return fail(res, 400, 'Request a new reset code');
+    if (!/^\d{6}$/.test(otp)) return fail(res, 400, 'OTP must contain exactly 6 digits');
+    if (challenge.attempts >= 5) return fail(res, 429, 'Too many incorrect codes. Request a new code');
+    if (otp !== challenge.code) { challenge.attempts++; return fail(res, 400, 'Incorrect verification code'); }
+    challenge.verified = true;
+    ok(res, null, 'Email verified successfully');
+  } catch (e) { next(e); }
+});
+
+app.post('/api/auth/forgot-password/reset', async (req, res, next) => {
+  try {
+    const challenge = resetChallenges.get(req.body.verificationId);
+    if (!challenge || !challenge.verified) return fail(res, 400, 'Please verify your email first');
+    const newPassword = String(req.body.password || '');
+    if (!newPassword || newPassword.length < 6) return fail(res, 400, 'Password must be at least 6 characters');
+    const hash = await bcrypt.hash(newPassword, 10);
+    await pool.query('UPDATE users SET password_hash=? WHERE email=?', [hash, challenge.email]);
+    resetChallenges.delete(req.body.verificationId);
+    ok(res, null, 'Password reset successful! You can now sign in with your new password.');
+  } catch (e) { next(e); }
+});
+
+// ─── DELETE ACCOUNT ─────────────────────────────────────────────────────────
+
+app.delete('/api/account', auth, async (req, res, next) => {
+  try {
+    const password = String(req.body.password || '');
+    if (!password) return fail(res, 400, 'Password is required to delete your account');
+    const [r] = await pool.query('SELECT id, password_hash FROM users WHERE id=?', [req.user.id]);
+    if (!r[0] || !(await bcrypt.compare(password, r[0].password_hash)))
+      return fail(res, 401, 'Incorrect password');
+    // Delete user (cascading deletes handle profiles, jobs, applications, etc.)
+    await pool.query('DELETE FROM users WHERE id=? AND role<>"ROLE_ADMIN"', [req.user.id]);
+    ok(res, null, 'Account deleted successfully');
+  } catch (e) { next(e); }
+});
+
 // ─── STATIC FILES & ERROR HANDLING ───────────────────────────────────────────
 
 app.use('/uploads', express.static(uploadsDir));

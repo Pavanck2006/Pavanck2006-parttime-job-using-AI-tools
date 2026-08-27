@@ -279,5 +279,95 @@ const Auth = {
     } catch (e) {
       console.warn('Failed to load nav photo', e);
     }
+  },
+
+  showForgotPassword() {
+    // Hide login modal, show forgot password modal
+    bootstrap.Modal.getInstance(document.getElementById('loginModal'))?.hide();
+    document.getElementById('fpStep1')?.classList.remove('d-none');
+    document.getElementById('fpStep2')?.classList.add('d-none');
+    document.getElementById('fpStep3')?.classList.add('d-none');
+    document.getElementById('fpEmail').value = '';
+    document.getElementById('fpOtp').value = '';
+    document.getElementById('fpNewPassword').value = '';
+    document.getElementById('fpConfirmPassword').value = '';
+    setTimeout(() => {
+      new bootstrap.Modal(document.getElementById('forgotPasswordModal')).show();
+    }, 400);
+  },
+
+  async forgotPasswordSendCode() {
+    const email = document.getElementById('fpEmail').value.trim();
+    if (!email) { App.showToast('Please enter your email', 'warning'); return; }
+    const btn = document.getElementById('fpSendCodeBtn');
+    try {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sending...';
+      const data = await API.request('/auth/forgot-password', {method: 'POST', body: JSON.stringify({email})});
+      document.getElementById('fpVerificationId').value = data.data.verificationId;
+      document.getElementById('fpStep1').classList.add('d-none');
+      document.getElementById('fpStep2').classList.remove('d-none');
+      App.showToast('Verification code sent to your email!', 'success');
+    } catch (e) {
+      App.showToast(e.message || 'Failed to send reset code', 'danger');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-send me-2"></i>Send Reset Code';
+    }
+  },
+
+  async forgotPasswordVerifyOtp() {
+    const otp = document.getElementById('fpOtp').value.trim();
+    const verificationId = document.getElementById('fpVerificationId').value;
+    if (!otp || otp.length !== 6) { App.showToast('Enter the 6-digit code', 'warning'); return; }
+    const btn = document.getElementById('fpVerifyBtn');
+    try {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Verifying...';
+      await API.request('/auth/forgot-password/verify', {method: 'POST', body: JSON.stringify({verificationId, otp})});
+      document.getElementById('fpStep2').classList.add('d-none');
+      document.getElementById('fpStep3').classList.remove('d-none');
+      App.showToast('Email verified! Set your new password.', 'success');
+    } catch (e) {
+      App.showToast(e.message || 'Verification failed', 'danger');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-shield-check me-2"></i>Verify Code';
+    }
+  },
+
+  async forgotPasswordReset() {
+    const password = document.getElementById('fpNewPassword').value;
+    const confirm = document.getElementById('fpConfirmPassword').value;
+    const verificationId = document.getElementById('fpVerificationId').value;
+    if (!password || password.length < 6) { App.showToast('Password must be at least 6 characters', 'warning'); return; }
+    if (password !== confirm) { App.showToast('Passwords do not match', 'warning'); return; }
+    const btn = document.getElementById('fpResetBtn');
+    try {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Resetting...';
+      await API.request('/auth/forgot-password/reset', {method: 'POST', body: JSON.stringify({verificationId, password})});
+      bootstrap.Modal.getInstance(document.getElementById('forgotPasswordModal'))?.hide();
+      App.showToast('Password reset successful! You can now sign in.', 'success');
+      setTimeout(() => { App.showLogin(); }, 500);
+    } catch (e) {
+      App.showToast(e.message || 'Failed to reset password', 'danger');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Reset Password';
+    }
+  },
+
+  async deleteAccount() {
+    if (!confirm('Are you sure you want to permanently delete your account? This cannot be undone!')) return;
+    const password = prompt('Enter your password to confirm account deletion:');
+    if (!password) return;
+    try {
+      await API.request('/account', {method: 'DELETE', body: JSON.stringify({password})});
+      App.showToast('Account deleted successfully.', 'success');
+      setTimeout(() => { Auth.logout(); }, 1000);
+    } catch (e) {
+      App.showToast(e.message || 'Failed to delete account', 'danger');
+    }
   }
 };

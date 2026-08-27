@@ -808,6 +808,13 @@
                 </button>
               </div>
             </form>
+            <hr class="my-3">
+            <div class="text-center">
+              <button type="button" class="btn btn-outline-danger btn-sm" onclick="Auth.deleteAccount()">
+                <i class="bi bi-trash3 me-1"></i>Delete Account
+              </button>
+              <div class="text-muted small mt-1">This action cannot be undone.</div>
+            </div>
           </div>
         </div>
       </div>
@@ -1174,6 +1181,13 @@
                 </button>
               </div>
             </form>
+            <hr class="my-3">
+            <div class="text-center">
+              <button type="button" class="btn btn-outline-danger btn-sm" onclick="Auth.deleteAccount()">
+                <i class="bi bi-trash3 me-1"></i>Delete Account
+              </button>
+              <div class="text-muted small mt-1">This action cannot be undone.</div>
+            </div>
           </div>
         </div>
       </div>
@@ -1436,6 +1450,9 @@
               <label class="form-label small fw-semibold">Password</label>
               <input type="password" id="loginPassword" class="form-control" placeholder="••••••••" required>
             </div>
+            <div class="text-end mb-3">
+              <a href="javascript:void(0)" class="small text-primary fw-semibold" onclick="Auth.showForgotPassword()">Forgot Password?</a>
+            </div>
             <button type="submit" id="loginSubmitBtn" class="btn btn-primary-custom w-100 py-2">
               <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
             </button>
@@ -1444,6 +1461,58 @@
           <div class="text-center mt-3 small">
             Don't have an account?
             <a href="javascript:void(0)" class="fw-bold text-primary" onclick="bootstrap.Modal.getInstance(document.getElementById('loginModal')).hide(); App.openRegisterModal('ROLE_STUDENT');">Register Now</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FORGOT PASSWORD MODAL -->
+  <div class="modal fade" id="forgotPasswordModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold"><i class="bi bi-key me-2 text-primary"></i>Reset Password</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <!-- Step 1: Enter Email -->
+          <div id="fpStep1">
+            <p class="text-muted small">Enter your email address and we'll send you a verification code to reset your password.</p>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Email Address</label>
+              <input type="email" id="fpEmail" class="form-control" placeholder="name@example.com" required>
+            </div>
+            <button type="button" id="fpSendCodeBtn" class="btn btn-primary-custom w-100 py-2" onclick="Auth.forgotPasswordSendCode()">
+              <i class="bi bi-send me-2"></i>Send Reset Code
+            </button>
+          </div>
+          <!-- Step 2: Enter OTP -->
+          <div id="fpStep2" class="d-none">
+            <p class="text-muted small">Enter the 6-digit code sent to your email.</p>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Verification Code</label>
+              <input type="tel" id="fpOtp" class="form-control text-center fw-bold" inputmode="numeric" maxlength="6" minlength="6" pattern="[0-9]{6}" placeholder="Enter 6-digit OTP" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,6)">
+            </div>
+            <input type="hidden" id="fpVerificationId">
+            <button type="button" id="fpVerifyBtn" class="btn btn-primary-custom w-100 py-2" onclick="Auth.forgotPasswordVerifyOtp()">
+              <i class="bi bi-shield-check me-2"></i>Verify Code
+            </button>
+          </div>
+          <!-- Step 3: New Password -->
+          <div id="fpStep3" class="d-none">
+            <p class="text-muted small">Create a new password for your account.</p>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">New Password</label>
+              <input type="password" id="fpNewPassword" class="form-control" placeholder="At least 6 characters" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Confirm Password</label>
+              <input type="password" id="fpConfirmPassword" class="form-control" placeholder="Repeat your new password" required>
+            </div>
+            <button type="button" id="fpResetBtn" class="btn btn-success w-100 py-2" onclick="Auth.forgotPasswordReset()">
+              <i class="bi bi-check-circle me-2"></i>Reset Password
+            </button>
           </div>
         </div>
       </div>
