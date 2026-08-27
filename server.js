@@ -359,8 +359,18 @@ app.put('/api/student/applications/:id/confirm-payment', auth, guard('ROLE_STUDE
 
 app.get('/api/student/payments', auth, guard('ROLE_STUDENT'), async (req, res, next) => {
   try {
-    const [r] = await pool.query('SELECT p.*,j.title job_title,j.work_area FROM payment_records p JOIN catering_jobs j ON j.id=p.job_id JOIN student_profiles s ON s.id=p.student_id WHERE s.user_id=?', [req.user.id]);
-    ok(res, r);
+    const [r] = await pool.query('SELECT p.*,j.title job_title,j.work_area,o.catering_name owner_catering_name FROM payment_records p JOIN catering_jobs j ON j.id=p.job_id JOIN student_profiles s ON s.id=p.student_id JOIN owner_profiles o ON o.id=p.owner_id WHERE s.user_id=? ORDER BY p.created_at DESC', [req.user.id]);
+    ok(res, r.map(x => ({
+      id: x.id, applicationId: x.application_id, jobId: x.job_id,
+      studentId: x.student_id, ownerId: x.owner_id,
+      amount: x.amount, paymentType: x.payment_type,
+      paymentTypeDisplayName: x.payment_type,
+      paymentStatus: x.payment_status,
+      markedPaidAt: x.marked_paid_at, confirmedPaidAt: x.confirmed_paid_at,
+      notes: x.notes, createdAt: x.created_at,
+      jobTitle: x.job_title, workArea: x.work_area,
+      ownerCateringName: x.owner_catering_name
+    })));
   } catch (e) { next(e); }
 });
 
@@ -500,8 +510,18 @@ app.put('/api/owner/applications/:id/payment', auth, guard('ROLE_OWNER'), async 
 
 app.get('/api/owner/payments', auth, guard('ROLE_OWNER'), async (req, res, next) => {
   try {
-    const [r] = await pool.query('SELECT p.*,j.title job_title,j.work_area,su.full_name student_name,su.email student_email FROM payment_records p JOIN catering_jobs j ON j.id=p.job_id JOIN student_profiles s ON s.id=p.student_id JOIN users su ON su.id=s.user_id WHERE p.owner_id=?', [await ownerId(req)]);
-    ok(res, r);
+    const [r] = await pool.query('SELECT p.*,j.title job_title,j.work_area,su.full_name student_name,su.email student_email FROM payment_records p JOIN catering_jobs j ON j.id=p.job_id JOIN student_profiles s ON s.id=p.student_id JOIN users su ON su.id=s.user_id WHERE p.owner_id=? ORDER BY p.created_at DESC', [await ownerId(req)]);
+    ok(res, r.map(x => ({
+      id: x.id, applicationId: x.application_id, jobId: x.job_id,
+      studentId: x.student_id, ownerId: x.owner_id,
+      amount: x.amount, paymentType: x.payment_type,
+      paymentTypeDisplayName: x.payment_type,
+      paymentStatus: x.payment_status,
+      markedPaidAt: x.marked_paid_at, confirmedPaidAt: x.confirmed_paid_at,
+      notes: x.notes, createdAt: x.created_at,
+      jobTitle: x.job_title, workArea: x.work_area,
+      studentName: x.student_name, studentEmail: x.student_email
+    })));
   } catch (e) { next(e); }
 });
 
