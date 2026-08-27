@@ -55,7 +55,7 @@ async loadProfile() {
     setText('owViewJobsPosted', profile.totalJobsPosted ?? 0);
     setText('owViewVerification', profile.verified ? 'Verified' : (profile.verificationStatus || 'Pending Verification'));
 
-    // Profile photo display in profile section
+    // Profile photo display
     const photoImg = document.getElementById('owViewPhoto');
     if (photoImg) {        if (profile.profilePhotoUrl) {
         photoImg.src = profile.profilePhotoUrl;
@@ -65,19 +65,6 @@ async loadProfile() {
         photoImg.style.display = 'none';
         document.getElementById('owViewPhotoPlaceholder')?.classList.remove('d-none');
       }
-    }
-
-    // Profile photo in dashboard header
-    const dashPhoto = document.getElementById('owDashPhoto');
-    const dashWrap = document.getElementById('owDashPhotoWrap');
-    const dashPlaceholder = document.getElementById('owDashPhotoPlaceholder');
-    if (dashPhoto && profile.profilePhotoUrl) {
-      dashPhoto.src = profile.profilePhotoUrl;
-      dashWrap.style.display = 'block';
-      dashPlaceholder.style.display = 'none';
-    } else if (dashWrap) {
-      dashWrap.style.display = 'none';
-      if (dashPlaceholder) dashPlaceholder.style.display = 'flex';
     }
 
     // ===== EDIT FORM (hidden by default) =====

@@ -52,7 +52,7 @@ const Student = {
       document.getElementById('stViewEmerg').innerText = profile.emergencyContact || '-';
       document.getElementById('stViewJobsDone').innerText = profile.totalJobsCompleted || 0;
 
-      // Profile photo display in profile section
+      // Profile photo display
       const photoImg = document.getElementById('stViewPhoto');
       if (photoImg) {
         if (profile.profilePhotoUrl) {
@@ -63,19 +63,6 @@ const Student = {
           photoImg.style.display = 'none';
           document.getElementById('stViewPhotoPlaceholder')?.classList.remove('d-none');
         }
-      }
-
-      // Profile photo in dashboard header
-      const dashPhoto = document.getElementById('stDashPhoto');
-      const dashWrap = document.getElementById('stDashPhotoWrap');
-      const dashPlaceholder = document.getElementById('stDashPhotoPlaceholder');
-      if (dashPhoto && profile.profilePhotoUrl) {
-        dashPhoto.src = profile.profilePhotoUrl;
-        dashWrap.style.display = 'block';
-        dashPlaceholder.style.display = 'none';
-      } else if (dashWrap) {
-        dashWrap.style.display = 'none';
-        if (dashPlaceholder) dashPlaceholder.style.display = 'flex';
       }
 
       // Populate profile edit form
