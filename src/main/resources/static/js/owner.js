@@ -467,47 +467,76 @@ async updateProfile(e) {
     }
   },
 
+  _allPayments: [],
+  _currentFilter: 'ALL',
+
   async loadPayments() {
     const container = document.getElementById('owPaymentsList');
     if (!container) return;
 
     try {
-      container.innerHTML = '<tr><td colspan="6" class="text-center p-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading payments...</td></tr>';
+      container.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading payments...</td></tr>';
       const payments = await API.owner.getPayments();
+      this._allPayments = payments || [];
 
-      let totalPaid = 0;
-      if (payments && payments.length > 0) {
-        payments.forEach(p => {
-          if (p.paymentStatus === 'PAID' || p.paymentStatus === 'CONFIRMED') {
-            totalPaid += (p.amount || 0);
-          }
-        });
-      }
+      // Calculate summary
+      let totalPaid = 0, totalPending = 0, totalAll = 0;
+      this._allPayments.forEach(p => {
+        const amt = Number(p.amount) || 0;
+        totalAll += amt;
+        if (p.paymentStatus === 'PAID' || p.paymentStatus === 'CONFIRMED') totalPaid += amt;
+        else totalPending += amt;
+      });
+
       document.getElementById('owStatTotalPayments').innerText = '₹' + totalPaid.toLocaleString();
+      document.getElementById('owPayPending').innerText = '₹' + totalPending.toLocaleString();
+      document.getElementById('owPayPaid').innerText = '₹' + totalPaid.toLocaleString();
+      document.getElementById('owPayTotal').innerText = '₹' + totalAll.toLocaleString();
 
-      if (!payments || payments.length === 0) {
-        container.innerHTML = '<tr><td colspan="6" class="text-center p-4 text-muted">No payment records found yet.</td></tr>';
-        return;
-      }
-
-      container.innerHTML = payments.map(pay => `
-        <tr>
-          <td class="fw-bold">${App.escapeHtml(pay.jobTitle)}</td>
-          <td>${App.escapeHtml(pay.studentName)}</td>
-          <td class="fw-bold text-success">₹${pay.amount}</td>
-          <td><span class="badge bg-light text-dark border">${pay.paymentTypeDisplayName || 'On-Spot'}</span></td>
-          <td>
-            ${pay.paymentStatus === 'CONFIRMED' ? '<span class="badge bg-success"><i class="bi bi-check-all me-1"></i>Confirmed by Student</span>' :
-              pay.paymentStatus === 'PAID' ? '<span class="badge bg-info text-dark">Marked Paid</span>' :
-              pay.paymentStatus === 'DISPUTED' ? '<span class="badge bg-danger">Disputed</span>' :
-              '<span class="badge bg-warning text-dark">Pending</span>'}
-          </td>
-          <td>${App.formatDate(pay.markedPaidAt || pay.createdAt)}</td>
-        </tr>
-      `).join('');
+      this.filterPayments(this._currentFilter);
     } catch (err) {
-      container.innerHTML = `<tr><td colspan="6" class="text-center p-3 text-danger">Failed to load payments</td></tr>`;
+      container.innerHTML = `<tr><td colspan="5" class="text-center p-3 text-danger">Failed to load payments</td></tr>`;
     }
+  },
+
+  filterPayments(status) {
+    this._currentFilter = status;
+    const container = document.getElementById('owPaymentsList');
+    if (!container) return;
+
+    // Update active filter button
+    ['All', 'Pending', 'Paid'].forEach(label => {
+      const btn = document.getElementById('owPayFilter' + label);
+      if (!btn) return;
+      btn.className = btn.id === 'owPayFilter' + status ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline-secondary';
+    });
+
+    let filtered = this._allPayments;
+    if (status === 'PENDING') filtered = filtered.filter(p => p.paymentStatus === 'PENDING');
+    else if (status === 'PAID') filtered = filtered.filter(p => p.paymentStatus === 'PAID' || p.paymentStatus === 'CONFIRMED');
+
+    if (!filtered.length) {
+      container.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-muted">No payments in this category.</td></tr>';
+      return;
+    }
+
+    container.innerHTML = filtered.map(pay => {
+      let statusBadge = '<span class="badge bg-warning text-dark">Pending</span>';
+      if (pay.paymentStatus === 'PAID') statusBadge = '<span class="badge bg-info text-dark">Paid</span>';
+      else if (pay.paymentStatus === 'CONFIRMED') statusBadge = '<span class="badge bg-success">Confirmed</span>';
+      else if (pay.paymentStatus === 'DISPUTED') statusBadge = '<span class="badge bg-danger">Disputed</span>';
+
+      return `<tr>
+        <td>
+          <div class="fw-bold">${App.escapeHtml(pay.jobTitle)}</div>
+          <small class="text-muted">${App.escapeHtml(pay.workArea || '')}</small>
+        </td>
+        <td>${App.escapeHtml(pay.studentName)}</td>
+        <td class="fw-bold text-success">₹${pay.amount}</td>
+        <td>${statusBadge}</td>
+        <td>${App.formatDate(pay.markedPaidAt || pay.createdAt)}</td>
+      </tr>`;
+    }).join('');
   },
 
   async loadComplaints() {

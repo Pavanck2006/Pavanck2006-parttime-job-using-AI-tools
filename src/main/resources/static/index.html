@@ -1052,14 +1052,42 @@
 
         <!-- 3. Payments -->
         <div class="tab-pane fade" id="ow-tab-payments">
+          <!-- Payment Summary Cards -->
+          <div class="row g-3 mb-4" id="owPaymentSummary">
+            <div class="col-sm-4">
+              <div class="card border-0 shadow-sm text-center p-3">
+                <div class="small text-muted mb-1">Pending</div>
+                <div class="fw-bold fs-5 text-warning" id="owPayPending">₹0</div>
+              </div>
+            </div>
+            <div class="col-sm-4">
+              <div class="card border-0 shadow-sm text-center p-3">
+                <div class="small text-muted mb-1">Paid</div>
+                <div class="fw-bold fs-5 text-success" id="owPayPaid">₹0</div>
+              </div>
+            </div>
+            <div class="col-sm-4">
+              <div class="card border-0 shadow-sm text-center p-3">
+                <div class="small text-muted mb-1">Total</div>
+                <div class="fw-bold fs-5 text-primary" id="owPayTotal">₹0</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filter Tabs -->
+          <div class="d-flex gap-2 mb-3">
+            <button class="btn btn-sm btn-primary" id="owPayFilterAll" onclick="Owner.filterPayments('ALL')">All</button>
+            <button class="btn btn-sm btn-outline-warning" id="owPayFilterPending" onclick="Owner.filterPayments('PENDING')">Pending</button>
+            <button class="btn btn-sm btn-outline-success" id="owPayFilterPaid" onclick="Owner.filterPayments('PAID')">Paid</button>
+          </div>
+
           <div class="custom-table table-responsive">
             <table class="table align-middle mb-0">
               <thead>
                 <tr>
-                  <th>Job Title</th>
-                  <th>Student Name</th>
+                  <th>Job</th>
+                  <th>Student</th>
                   <th>Amount</th>
-                  <th>Payment Mode</th>
                   <th>Status</th>
                   <th>Date</th>
                 </tr>
