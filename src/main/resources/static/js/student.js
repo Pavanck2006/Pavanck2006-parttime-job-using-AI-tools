@@ -65,19 +65,6 @@ const Student = {
         }
       }
 
-      // Profile photo in dashboard header
-      const dashPhoto = document.getElementById('stDashPhoto');
-      const dashWrap = document.getElementById('stDashPhotoWrap');
-      const dashPlaceholder = document.getElementById('stDashPhotoPlaceholder');
-      if (dashPhoto && profile.profilePhotoUrl) {
-        dashPhoto.src = profile.profilePhotoUrl;
-        dashWrap.style.display = 'block';
-        dashPlaceholder.style.display = 'none';
-      } else if (dashWrap) {
-        dashWrap.style.display = 'none';
-        if (dashPlaceholder) dashPlaceholder.style.display = 'flex';
-      }
-
       // Populate profile edit form
       document.getElementById('stProfFullName').value = profile.fullName || '';
       document.getElementById('stProfPhone').value = profile.phone || '';
