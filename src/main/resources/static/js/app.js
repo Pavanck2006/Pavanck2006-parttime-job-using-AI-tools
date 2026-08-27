@@ -167,6 +167,22 @@ const App = {
     }
   },
 
+  goToSection(sectionId) {
+    // If not on home page, navigate there first
+    if (this.currentView !== 'home') {
+      this.navigate('home');
+      // Wait for view to render, then scroll
+      setTimeout(() => {
+        const el = document.getElementById(sectionId);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 200);
+    } else {
+      // Already on home page, just scroll
+      const el = document.getElementById(sectionId);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  },
+
   routeToRoleDashboard(role) {
     if (role === 'ROLE_ADMIN') {
       this.navigate('admin-dashboard');
