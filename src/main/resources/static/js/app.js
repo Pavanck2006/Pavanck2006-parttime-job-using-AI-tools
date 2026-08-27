@@ -12,7 +12,6 @@ const App = {
     Auth.init();
     Notifications.init();
     Chat.init();
-    Translations.applyTranslations();
     this.bindGlobalEvents();
     this.loadPublicJobs();
     
