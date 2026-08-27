@@ -104,16 +104,24 @@ const Auth = {
     };
 
     if (!document.getElementById('regVerificationId').value) {
-      try {
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sending Code...';
-        const otp = await API.auth.requestOtp({email});
-        document.getElementById('regVerificationId').value = otp.verificationId;
-        document.getElementById('regOtpGroup').classList.remove('d-none');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="bi bi-person-check me-2"></i>Create Account';
-        App.showToast('Verification code sent by email. Check your inbox.', 'info');
-      } catch (err) { btn.disabled = false; App.showToast(err.message || 'Could not send verification code', 'danger'); }
+    try {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sending Code...';
+      const otp = await API.auth.requestOtp({email});
+      document.getElementById('regVerificationId').value = otp.verificationId;
+      document.getElementById('regOtpGroup').classList.remove('d-none');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="bi bi-person-check me-2"></i>Create Account';
+      App.showToast('Verification code sent by email. Check your inbox.', 'info');
+    } catch (err) {
+      btn.disabled = false;
+      const msg = err.message || 'Could not send verification code';
+      if (msg.includes('not configured') || msg.includes('SMTP')) {
+        App.showToast('Email verification is not configured. Please contact the administrator or set SMTP settings in the server .env file.', 'danger');
+      } else {
+        App.showToast(msg, 'danger');
+      }
+    }
       return;
     }
     if (document.getElementById('regEmailVerified').value !== 'true') {

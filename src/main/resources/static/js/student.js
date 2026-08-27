@@ -22,8 +22,8 @@ const Student = {
     try {
       const stats = await API.student.getDashboardStats();
       document.getElementById('stStatAvailable').innerText = stats.availableJobsCount || 0;
-      document.getElementById('stStatApplied').innerText = stats.appliedJobsCount || 0;
-      document.getElementById('stStatAccepted').innerText = stats.acceptedJobsCount || 0;
+      document.getElementById('stStatApplied').innerText = stats.appliedJobsCount || stats.totalApplicationsCount || 0;
+      document.getElementById('stStatAccepted').innerText = stats.acceptedJobsCount || stats.acceptedApplicationsCount || 0;
       document.getElementById('stStatCompleted').innerText = stats.completedJobsCount || 0;
       document.getElementById('stStatEarnings').innerText = '₹' + (stats.totalEarnings || 0).toLocaleString();
     } catch (e) {
