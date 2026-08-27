@@ -235,14 +235,49 @@ const Auth = {
         }
       }
 
+      // Load profile photo for navbar
+      this.loadNavPhoto(user.role);
+
       // Start notification polling
       Notifications.startPolling();
     } else {
+      // Reset nav photo
+      const navPhoto = document.getElementById('navUserPhoto');
+      const navPhotoIcon = document.getElementById('navUserPhotoIcon');
+      if (navPhoto) navPhoto.classList.add('d-none');
+      if (navPhotoIcon) navPhotoIcon.classList.remove('d-none');
+
       guestNav?.classList.remove('d-none');
       authNav?.classList.add('d-none');
       dashboardNavBtn?.classList.add('d-none');
       studentApplicationsSetting?.classList.add('d-none');
       Notifications.stopPolling();
+    }
+  },
+
+  async loadNavPhoto(role) {
+    try {
+      const navPhoto = document.getElementById('navUserPhoto');
+      const navPhotoIcon = document.getElementById('navUserPhotoIcon');
+      if (!navPhoto || !navPhotoIcon) return;
+
+      let profile = null;
+      if (role === 'ROLE_STUDENT') {
+        profile = await API.student.getProfile();
+      } else if (role === 'ROLE_OWNER') {
+        profile = await API.owner.getProfile();
+      }
+
+      if (profile && profile.profilePhotoUrl) {
+        navPhoto.src = profile.profilePhotoUrl;
+        navPhoto.classList.remove('d-none');
+        navPhotoIcon.classList.add('d-none');
+      } else {
+        navPhoto.classList.add('d-none');
+        navPhotoIcon.classList.remove('d-none');
+      }
+    } catch (e) {
+      console.warn('Failed to load nav photo', e);
     }
   }
 };

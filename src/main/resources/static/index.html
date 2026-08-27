@@ -88,12 +88,13 @@
           <!-- User Menu Dropdown -->
           <div class="dropdown">
             <button class="btn btn-light btn-sm dropdown-toggle border d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown">
-              <i class="bi bi-person-circle fs-5 text-primary"></i>
+              <img id="navUserPhoto" src="" alt="" class="rounded-circle d-none" style="width:28px;height:28px;object-fit:cover;">
+              <i class="bi bi-person-circle fs-5 text-primary" id="navUserPhotoIcon"></i>
               <span id="userDisplayName" class="fw-semibold">User</span>
               <span id="userRoleBadge" class="badge bg-secondary ms-1">Role</span>
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-              <li><a class="dropdown-item" href="javascript:void(0)" onclick="App.openRoleDashboard()"><i class="bi bi-grid me-2 text-primary"></i>My Dashboard</a></li>
+              <li><a class="dropdown-item" href="javascript:void(0)" onclick="App.openSettingsSection('profile')"><i class="bi bi-person-gear me-2 text-primary"></i>Settings</a></li>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item text-danger" href="javascript:void(0)" onclick="Auth.logout()"><i class="bi bi-box-arrow-right me-2"></i>Sign Out</a></li>
             </ul>
