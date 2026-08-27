@@ -160,6 +160,7 @@ function job(r, unlocked = false) {
     requiredSkills: r.required_skills,
     contactPhone: unlocked ? r.contact_phone : undefined,
     contactEmail: unlocked ? r.contact_email : undefined,
+    locationPhotoUrl: r.location_photo_url || null,
     status: r.status, cateringName: r.catering_name,
     ownerId: r.owner_user_id,
     ownerVerified: r.verification_status === 'VERIFIED',
@@ -368,8 +369,8 @@ app.put('/api/owner/profile', auth, guard('ROLE_OWNER'), async (req, res, next) 
 app.post('/api/owner/jobs', auth, guard('ROLE_OWNER'), async (req, res, next) => {
   try {
     const b = req.body, id = await ownerId(req);
-    const [x] = await pool.query(`INSERT INTO catering_jobs (owner_id,title,description,work_type,work_area,detailed_location,job_date,start_time,end_time,payment_amount,payment_type,is_on_spot_payment,workers_required,required_skills,contact_phone,contact_email) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [id, b.title, b.description || null, b.workType, b.workArea, b.detailedLocation, b.jobDate, b.startTime, b.endTime, b.paymentAmount, b.paymentType, b.onSpotPayment !== false, b.workersRequired, b.requiredSkills || null, b.contactPhone, b.contactEmail || null]);
+    const [x] = await pool.query(`INSERT INTO catering_jobs (owner_id,title,description,work_type,work_area,detailed_location,job_date,start_time,end_time,payment_amount,payment_type,is_on_spot_payment,workers_required,required_skills,contact_phone,contact_email,location_photo_url) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [id, b.title, b.description || null, b.workType, b.workArea, b.detailedLocation, b.jobDate, b.startTime, b.endTime, b.paymentAmount, b.paymentType, b.onSpotPayment !== false, b.workersRequired, b.requiredSkills || null, b.contactPhone, b.contactEmail || null, b.locationPhotoUrl || null]);
     const [r] = await pool.query(`${jobSql} WHERE j.id=?`, [x.insertId]);
     ok(res, job(r[0], true), 'Job posted successfully!');
   } catch (e) { next(e); }
@@ -394,8 +395,8 @@ app.get('/api/owner/jobs/:id', auth, guard('ROLE_OWNER'), async (req, res, next)
 app.put('/api/owner/jobs/:id', auth, guard('ROLE_OWNER'), async (req, res, next) => {
   try {
     const b = req.body;
-    await pool.query('UPDATE catering_jobs SET title=?,description=?,work_type=?,work_area=?,detailed_location=?,job_date=?,start_time=?,end_time=?,payment_amount=?,payment_type=?,is_on_spot_payment=?,workers_required=?,required_skills=?,contact_phone=?,contact_email=? WHERE id=? AND owner_id=?',
-      [b.title, b.description, b.workType, b.workArea, b.detailedLocation, b.jobDate, b.startTime, b.endTime, b.paymentAmount, b.paymentType, b.onSpotPayment, b.workersRequired, b.requiredSkills, b.contactPhone, b.contactEmail, req.params.id, await ownerId(req)]);
+    await pool.query('UPDATE catering_jobs SET title=?,description=?,work_type=?,work_area=?,detailed_location=?,job_date=?,start_time=?,end_time=?,payment_amount=?,payment_type=?,is_on_spot_payment=?,workers_required=?,required_skills=?,contact_phone=?,contact_email=?,location_photo_url=? WHERE id=? AND owner_id=?',
+      [b.title, b.description, b.workType, b.workArea, b.detailedLocation, b.jobDate, b.startTime, b.endTime, b.paymentAmount, b.paymentType, b.onSpotPayment, b.workersRequired, b.requiredSkills, b.contactPhone, b.contactEmail, b.locationPhotoUrl || null, req.params.id, await ownerId(req)]);
     const [r] = await pool.query(`${jobSql} WHERE j.id=?`, [req.params.id]);
     ok(res, job(r[0], true), 'Job updated successfully');
   } catch (e) { next(e); }

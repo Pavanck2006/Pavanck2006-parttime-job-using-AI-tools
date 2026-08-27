@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS catering_jobs (
     required_skills VARCHAR(255),
     contact_phone VARCHAR(20) NOT NULL,
     contact_email VARCHAR(120),
+    location_photo_url TEXT,
     status VARCHAR(30) DEFAULT 'OPEN',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

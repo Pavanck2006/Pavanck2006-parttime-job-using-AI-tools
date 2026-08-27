@@ -278,6 +278,8 @@ const App = {
             ${job.ownerVerified ? '<span class="verified-badge"><i class="bi bi-patch-check-fill"></i></span>' : '<span class="unverified-badge" title="Pending Verification"><i class="bi bi-shield-exclamation"></i></span>'}
           </div>
 
+          ${job.locationPhotoUrl ? `<div class="mb-3 rounded overflow-hidden"><img src="${App.escapeHtml(job.locationPhotoUrl)}" alt="Location photo" class="img-fluid rounded" style="max-height: 160px; width: 100%; object-fit: cover;" onerror="this.style.display='none'"></div>` : ''}
+
           <div class="text-muted small mb-3">
             <div class="mb-1"><i class="bi bi-geo-alt-fill text-danger me-1"></i><strong>Area:</strong> ${App.escapeHtml(job.workArea)}</div>
             <div class="mb-1"><i class="bi bi-calendar3 text-primary me-1"></i><strong>Date:</strong> ${App.formatDate(job.jobDate)}</div>
@@ -388,6 +390,8 @@ const App = {
               <p class="text-muted mb-0"><i class="bi bi-check2-circle text-success me-1"></i>${App.escapeHtml(job.requiredSkills)}</p>
             </div>
           ` : ''}
+
+          ${job.locationPhotoUrl ? `<div class="mb-3"><h6 class="fw-bold">Location Photo:</h6><img src="${App.escapeHtml(job.locationPhotoUrl)}" alt="Location photo" class="img-fluid rounded shadow-sm" style="max-height: 300px; width: 100%; object-fit: cover;" onerror="this.parentElement.style.display='none'"></div>` : ''}
 
           <!-- Privacy Protected Location Box -->
           <div class="mb-3">

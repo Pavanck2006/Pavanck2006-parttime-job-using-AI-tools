@@ -22,6 +22,8 @@ async function initializeDatabase() {
     CONSTRAINT fk_chat_sender FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_chat_report_created (report_id, created_at)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+  // Migration: add location_photo_url if missing
+  try { await pool.query('ALTER TABLE catering_jobs ADD COLUMN location_photo_url TEXT'); } catch (e) { if (e.errno !== 1060) throw e; }
   if (process.env.RUN_SEED !== 'false') {
     const seed = path.join(__dirname, '..', 'src', 'main', 'resources', 'data.sql');
     if (fs.existsSync(seed)) for (const statement of statements(seed)) try { await pool.query(statement); } catch (e) { if (![1062, 1451, 1452].includes(e.errno)) throw e; }

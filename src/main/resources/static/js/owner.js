@@ -152,6 +152,7 @@ async updateProfile(e) {
                     <span>📍 ${App.escapeHtml(job.workArea)}</span>
                     <span class="ms-2">📅 ${App.formatDate(job.jobDate)} (${App.formatTime(job.startTime)} - ${App.formatTime(job.endTime)})</span>
                   </div>
+                  ${job.locationPhotoUrl ? `<div class="mt-2"><img src="${App.escapeHtml(job.locationPhotoUrl)}" alt="Location" class="rounded" style="max-height: 80px; object-fit: cover;" onerror="this.style.display='none'"></div>` : ''}
                   <div class="small text-muted"><i class="bi bi-geo-alt me-1"></i>${App.escapeHtml(job.detailedLocation)}</div>
                 </div>
 
@@ -207,7 +208,8 @@ async updateProfile(e) {
         workersRequired: parseInt(document.getElementById('jobWorkersRequired').value, 10),
         requiredSkills: document.getElementById('jobRequiredSkills').value.trim(),
         contactPhone: document.getElementById('jobContactPhone').value.trim(),
-        contactEmail: document.getElementById('jobContactEmail').value.trim()
+        contactEmail: document.getElementById('jobContactEmail').value.trim(),
+        locationPhotoUrl: document.getElementById('jobLocationPhotoUrl').value.trim() || null
       };
 
       await API.owner.createJob(payload);
