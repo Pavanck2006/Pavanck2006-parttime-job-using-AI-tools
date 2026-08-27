@@ -716,14 +716,27 @@ app.delete('/api/reports/:id', auth, async (req, res, next) => {
 
 app.post('/api/upload/image', auth, upload.single('image'), (req, res, next) => {
   try {
-    if (!req.file) return fail(res, 400, 'No image file uploaded');
+    if (!req.file) {
+      console.error('[UPLOAD] No file received. Body keys:', Object.keys(req.body || {}));
+      return fail(res, 400, 'No image file uploaded. Please select an image file under 5MB.');
+    }
     const url = `/uploads/${req.file.filename}`;
+    console.log('[UPLOAD] File saved:', req.file.filename, 'URL:', url);
     ok(res, {url}, 'Image uploaded successfully');
-  } catch (e) { next(e); }
+  } catch (e) {
+    console.error('[UPLOAD] Error:', e.message);
+    next(e);
+  }
 });
+// Multer + general error handler
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
+    console.error('[UPLOAD] Multer error:', err.code, err.message);
     if (err.code === 'LIMIT_FILE_SIZE') return fail(res, 400, 'File too large. Maximum size is 5MB.');
+    return fail(res, 400, 'Upload failed: ' + err.message);
+  }
+  if (err.message && err.message.includes('image')) {
+    console.error('[UPLOAD] Image filter error:', err.message);
     return fail(res, 400, err.message);
   }
   next(err);
