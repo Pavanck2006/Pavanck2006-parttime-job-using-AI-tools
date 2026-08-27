@@ -186,12 +186,47 @@ async updateProfile(e) {
     }
   },
 
+  previewJobPhoto(input) {
+    const preview = document.getElementById('jobPhotoPreview');
+    const img = preview?.querySelector('img');
+    if (input.files && input.files[0] && img) {
+      const file = input.files[0];
+      if (file.size > 5 * 1024 * 1024) {
+        App.showToast('File too large. Maximum size is 5MB.', 'warning');
+        input.value = '';
+        preview.classList.add('d-none');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => { img.src = e.target.result; preview.classList.remove('d-none'); };
+      reader.readAsDataURL(file);
+    } else {
+      preview.classList.add('d-none');
+    }
+  },
+
   async handleCreateJob(e) {
     e.preventDefault();
     const btn = document.getElementById('createJobSubmitBtn');
     try {
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Posting Job...';
+
+      // Upload photo first if selected
+      let locationPhotoUrl = null;
+      const photoFile = document.getElementById('jobLocationPhoto').files[0];
+      if (photoFile) {
+        const formData = new FormData();
+        formData.append('image', photoFile);
+        const uploadRes = await fetch('/api/upload/image', {
+          method: 'POST',
+          headers: {'Authorization': `Bearer ${API.getToken()}`},
+          body: formData
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok) throw new Error(uploadData.message || 'Failed to upload photo');
+        locationPhotoUrl = uploadData.data?.url;
+      }
 
       const payload = {
         title: document.getElementById('jobTitle').value.trim(),
@@ -209,7 +244,7 @@ async updateProfile(e) {
         requiredSkills: document.getElementById('jobRequiredSkills').value.trim(),
         contactPhone: document.getElementById('jobContactPhone').value.trim(),
         contactEmail: document.getElementById('jobContactEmail').value.trim(),
-        locationPhotoUrl: document.getElementById('jobLocationPhotoUrl').value.trim() || null
+        locationPhotoUrl
       };
 
       await API.owner.createJob(payload);
@@ -218,6 +253,7 @@ async updateProfile(e) {
       // Reset form
       document.getElementById('createJobForm').reset();
       document.getElementById('jobOnSpotCheckbox').checked = true;
+      document.getElementById('jobPhotoPreview').classList.add('d-none');
 
       // Switch to Active Jobs tab
       const tabEl = document.querySelector('button[data-bs-target="#ow-tab-jobs"]');

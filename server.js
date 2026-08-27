@@ -7,6 +7,25 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const {pool, initializeDatabase, transaction} = require('./server/db');
 const chatRouter = require('./server/chat');
+const multer = require('multer');
+
+// File upload config
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, {recursive: true});
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadsDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname) || '.jpg';
+    cb(null, `job-photo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`);
+  }
+});
+const upload = multer({
+  storage, limits: {fileSize: 5 * 1024 * 1024},
+  fileFilter: (req, file, cb) => {
+    if (/^image\/(jpeg|jpg|png|gif|webp)$/.test(file.mimetype)) cb(null, true);
+    else cb(new Error('Only image files (JPG, PNG, GIF, WebP) are allowed.'));
+  }
+});
 
 const app = express();
 const PORT = Number(process.env.PORT || 8080);
@@ -691,8 +710,26 @@ app.delete('/api/reports/:id', auth, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// ─── FILE UPLOAD ─────────────────────────────────────────────────────────────
+
+app.post('/api/upload/image', auth, upload.single('image'), (req, res, next) => {
+  try {
+    if (!req.file) return fail(res, 400, 'No image file uploaded');
+    const url = `/uploads/${req.file.filename}`;
+    ok(res, {url}, 'Image uploaded successfully');
+  } catch (e) { next(e); }
+});
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') return fail(res, 400, 'File too large. Maximum size is 5MB.');
+    return fail(res, 400, err.message);
+  }
+  next(err);
+});
+
 // ─── STATIC FILES & ERROR HANDLING ───────────────────────────────────────────
 
+app.use('/uploads', express.static(uploadsDir));
 app.use(express.static(staticDir));
 app.get('*', (req, res) => res.sendFile(path.join(staticDir, 'index.html')));
 app.use((e, req, res, next) => { console.error(e); fail(res, e.status || 500, e.status ? e.message : 'Internal server error'); });

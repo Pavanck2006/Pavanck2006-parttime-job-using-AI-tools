@@ -1029,9 +1029,10 @@
 
               <div class="row g-3 mt-1">
                 <div class="col-12">
-                  <label class="form-label small fw-semibold"><i class="bi bi-image me-1"></i>Location Photo URL (Optional)</label>
-                  <input type="url" id="jobLocationPhotoUrl" class="form-control" placeholder="https://example.com/venue-photo.jpg">
-                  <div class="form-text">Paste a direct link to a photo of the venue or location (e.g. Google Maps screenshot, venue photo).</div>
+                  <label class="form-label small fw-semibold"><i class="bi bi-image me-1"></i>Location Photo (Optional)</label>
+                  <input type="file" id="jobLocationPhoto" class="form-control" accept="image/jpeg,image/png,image/gif,image/webp" onchange="Owner.previewJobPhoto(this)">
+                  <div class="form-text">Upload a photo of the venue or location (JPG, PNG, GIF, WebP — max 5MB).</div>
+                  <div id="jobPhotoPreview" class="mt-2 d-none"><img src="" alt="Preview" class="rounded shadow-sm" style="max-height:120px; object-fit:cover;"></div>
                 </div>
               </div>
 
