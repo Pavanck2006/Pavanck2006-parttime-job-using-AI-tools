@@ -13,43 +13,176 @@
   <!-- Custom Modern Design System -->
   <link rel="stylesheet" href="/css/style.css">
 
-  <!-- Google Translate Auto-Translate Widget -->
+  <!-- Google Translate -->
   <script>
     function googleTranslateElementInit() {
       new google.translate.TranslateElement({
         pageLanguage: 'en',
-        includedLanguages: 'en,kn',
+        includedLanguages: 'en,kn,hi,ta,te,ml,bn,gu,mr,ur,fr,es,de,ja,zh-CN,ko,pt,ru,ar,it,th,vi,tr,pl,nl,sv,da,fi,no,cs,el,hu,ro,uk,id,ms',
         layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
         autoDisplay: false
       }, 'google_translate_element');
-      // Clone to auth nav if it exists
-      var authEl = document.getElementById('google_translate_element_auth');
-      if (authEl) {
-        new google.translate.TranslateElement({
-          pageLanguage: 'en',
-          includedLanguages: 'en,kn',
-          layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
-          autoDisplay: false
-        }, 'google_translate_element_auth');
-      }
+      new google.translate.TranslateElement({
+        pageLanguage: 'en',
+        includedLanguages: 'en,kn,hi,ta,te,ml,bn,gu,mr,ur,fr,es,de,ja,zh-CN,ko,pt,ru,ar,it,th,vi,tr,pl,nl,sv,da,fi,no,cs,el,hu,ro,uk,id,ms',
+        layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+        autoDisplay: false
+      }, 'google_translate_element_auth');
     }
   </script>
   <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
   <style>
-    #google_translate_element, #google_translate_element_auth { display: inline-block; }
-    #google_translate_element .goog-te-gadget, #google_translate_element_auth .goog-te-gadget { font-size: 0; }
-    #google_translate_element .goog-te-gadget span, #google_translate_element_auth .goog-te-gadget span { font-size: 14px; }
-    #google_translate_element select, #google_translate_element_auth select {
-      border: 1px solid #dee2e6;
-      border-radius: 6px;
-      padding: 4px 8px;
-      font-size: 13px;
-      background: white;
-      cursor: pointer;
-    }
     .goog-te-banner-frame { display: none !important; }
     body { top: 0 !important; }
+    /* Hide default Google Translate widget, we use our own */
+    #google_translate_element, #google_translate_element_auth { position: absolute; left: -9999px; opacity: 0; pointer-events: none; }
+    /* Custom language selector */
+    .lang-selector { position: relative; }
+    .lang-selector-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 10px; border-radius: 8px; border: 1px solid var(--light-border, #e2e8f0);
+      background: var(--light-surface, #fff); color: var(--text-dark, #0f172a);
+      font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .lang-selector-btn:hover { background: var(--primary-light, #eef2ff); border-color: var(--primary, #4f46e5); }
+    .lang-selector-btn i { font-size: 11px; }
+    .lang-dropdown {
+      display: none; position: absolute; top: calc(100% + 6px); right: 0; z-index: 9999;
+      background: var(--light-surface, #fff); border: 1px solid var(--light-border, #e2e8f0);
+      border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+      width: 260px; max-height: 380px; overflow: hidden;
+    }
+    .lang-dropdown.open { display: block; }
+    .lang-search {
+      width: 100%; padding: 10px 14px; border: none; border-bottom: 1px solid var(--light-border, #e2e8f0);
+      font-size: 13px; outline: none; background: transparent;
+    }
+    .lang-list { max-height: 330px; overflow-y: auto; padding: 4px 0; }
+    .lang-option {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 14px; cursor: pointer; font-size: 13px; transition: background 0.15s;
+    }
+    .lang-option:hover { background: var(--primary-light, #eef2ff); }
+    .lang-option.active { background: var(--primary-light, #eef2ff); color: var(--primary, #4f46e5); font-weight: 600; }
+    .lang-flag { font-size: 18px; line-height: 1; }
+    .lang-name { flex: 1; }
+    .lang-name small { display: block; font-size: 11px; color: var(--text-muted, #64748b); font-weight: 400; }
+    .lang-option.active .lang-name small { color: var(--primary, #4f46e5); }
   </style>
+  <script>
+    const LANGUAGES = [
+      {code:'en',flag:'🇬🇧',name:'English',native:'English'},
+      {code:'kn',flag:'🇮🇳',name:'Kannada',native:'ಕನ್ನಡ'},
+      {code:'hi',flag:'🇮🇳',name:'Hindi',native:'हिन्दी'},
+      {code:'ta',flag:'🇮🇳',name:'Tamil',native:'தமிழ்'},
+      {code:'te',flag:'🇮🇳',name:'Telugu',native:'తెలుగు'},
+      {code:'ml',flag:'🇮🇳',name:'Malayalam',native:'മലയാളം'},
+      {code:'bn',flag:'🇮🇳',name:'Bengali',native:'বাংলা'},
+      {code:'gu',flag:'🇮🇳',name:'Gujarati',native:'ગુજરાતી'},
+      {code:'mr',flag:'🇮🇳',name:'Marathi',native:'मराठी'},
+      {code:'ur',flag:'🇮🇳',name:'Urdu',native:'اردو'},
+      {code:'fr',flag:'🇫🇷',name:'French',native:'Français'},
+      {code:'es',flag:'🇪🇸',name:'Spanish',native:'Español'},
+      {code:'de',flag:'🇩🇪',name:'German',native:'Deutsch'},
+      {code:'ja',flag:'🇯🇵',name:'Japanese',native:'日本語'},
+      {code:'zh-CN',flag:'🇨🇳',name:'Chinese',native:'中文'},
+      {code:'ko',flag:'🇰🇷',name:'Korean',native:'한국어'},
+      {code:'pt',flag:'🇧🇷',name:'Portuguese',native:'Português'},
+      {code:'ru',flag:'🇷🇺',name:'Russian',native:'Русский'},
+      {code:'ar',flag:'🇸🇦',name:'Arabic',native:'العربية'},
+      {code:'it',flag:'🇮🇹',name:'Italian',native:'Italiano'},
+      {code:'th',flag:'🇹🇭',name:'Thai',native:'ไทย'},
+      {code:'vi',flag:'🇻🇳',name:'Vietnamese',native:'Tiếng Việt'},
+      {code:'tr',flag:'🇹🇷',name:'Turkish',native:'Türkçe'},
+      {code:'pl',flag:'🇵🇱',name:'Polish',native:'Polski'},
+      {code:'nl',flag:'🇳🇱',name:'Dutch',native:'Nederlands'},
+      {code:'id',flag:'🇮🇩',name:'Indonesian',native:'Bahasa Indonesia'},
+      {code:'ms',flag:'🇲🇾',name:'Malay',native:'Bahasa Melayu'},
+    ];
+    let currentLang = localStorage.getItem('ptj_lang') || 'en';
+
+    function createLangSelector(containerId) {
+      var container = document.getElementById(containerId);
+      if (!container) return;
+      var cur = LANGUAGES.find(l => l.code === currentLang) || LANGUAGES[0];
+      container.innerHTML = '<div class="lang-selector">' +
+        '<button class="lang-selector-btn" onclick="toggleLangDropdown(this)">' +
+        '<span class="lang-flag">' + cur.flag + '</span>' +
+        '<span>' + cur.native + '</span>' +
+        '<i class="bi bi-chevron-down"></i></button>' +
+        '<div class="lang-dropdown">' +
+        '<input type="text" class="lang-search" placeholder="Search language..." oninput="filterLanguages(this.value, this.nextElementSibling)">' +
+        '<div class="lang-list" id="langList_' + containerId + '"></div></div></div>';
+      renderLangList('langList_' + containerId);
+    }
+
+    function renderLangList(listId) {
+      var list = document.getElementById(listId);
+      if (!list) return;
+      var q = (list.previousElementSibling?.value || '').toLowerCase();
+      var filtered = LANGUAGES.filter(l => !q || l.name.toLowerCase().includes(q) || l.native.toLowerCase().includes(q));
+      list.innerHTML = filtered.map(l =>
+        '<div class="lang-option' + (l.code === currentLang ? ' active' : '') + '" onclick="selectLanguage('' + l.code + '', this.closest('.lang-selector'))">' +
+        '<span class="lang-flag">' + l.flag + '</span>' +
+        '<span class="lang-name">' + l.name + '<small>' + l.native + '</small></span>' +
+        '</div>'
+      ).join('');
+    }
+
+    function filterLanguages(query, list) {
+      var q = query.toLowerCase();
+      var filtered = LANGUAGES.filter(l => l.name.toLowerCase().includes(q) || l.native.toLowerCase().includes(q));
+      list.innerHTML = filtered.map(l =>
+        '<div class="lang-option' + (l.code === currentLang ? ' active' : '') + '" onclick="selectLanguage('' + l.code + '', this.closest('.lang-selector'))">' +
+        '<span class="lang-flag">' + l.flag + '</span>' +
+        '<span class="lang-name">' + l.name + '<small>' + l.native + '</small></span>' +
+        '</div>'
+      ).join('');
+    }
+
+    function selectLanguage(code, selector) {
+      currentLang = code;
+      localStorage.setItem('ptj_lang', code);
+      // Trigger Google Translate
+      var gtSelect = document.querySelector('#google_translate_element select');
+      if (gtSelect) {
+        gtSelect.value = code;
+        gtSelect.dispatchEvent(new Event('change'));
+      }
+      // Rebuild all selectors
+      document.querySelectorAll('.lang-selector').forEach(s => {
+        var id = s.parentElement?.id;
+        if (id) createLangSelector(id);
+      });
+      // Close dropdown
+      document.querySelectorAll('.lang-dropdown').forEach(d => d.classList.remove('open'));
+    }
+
+    function toggleLangDropdown(btn) {
+      var dd = btn.nextElementSibling;
+      var wasOpen = dd.classList.contains('open');
+      document.querySelectorAll('.lang-dropdown').forEach(d => d.classList.remove('open'));
+      if (!wasOpen) {
+        dd.classList.add('open');
+        dd.querySelector('.lang-search').value = '';
+        dd.querySelector('.lang-search').focus();
+        renderLangList(dd.querySelector('.lang-list')?.id);
+      }
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.lang-selector')) {
+        document.querySelectorAll('.lang-dropdown').forEach(d => d.classList.remove('open'));
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+      createLangSelector('langGuest');
+      createLangSelector('langAuth');
+    });
+  </script>
 </head>
 <body>
 
@@ -88,7 +221,7 @@
 
         <!-- Guest Nav -->
         <div id="guestNav" class="d-flex align-items-center gap-2">
-          <div id="google_translate_element" class="d-flex align-items-center"></div>
+          <div id="langGuest"></div>
           <button class="btn btn-light btn-sm border theme-toggle" id="themeToggle" type="button" onclick="App.toggleTheme()" aria-label="Switch to dark mode" title="Switch to dark mode">
             <i class="bi bi-moon-stars-fill" aria-hidden="true"></i>
             <span class="visually-hidden">Switch theme</span>
@@ -103,7 +236,7 @@
 
         <!-- Authenticated User Nav -->
         <div id="authNav" class="d-none d-flex align-items-center gap-3">
-          <div id="google_translate_element_auth" class="d-flex align-items-center"></div>
+          <div id="langAuth"></div>
           <button class="btn btn-light btn-sm border theme-toggle" id="themeToggleAuth" type="button" onclick="App.toggleTheme()" aria-label="Switch to dark mode" title="Switch to dark mode">
             <i class="bi bi-moon-stars-fill" aria-hidden="true"></i>
             <span class="visually-hidden">Switch theme</span>
