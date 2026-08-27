@@ -31,13 +31,26 @@ const Student = {
     }
   },
 
-  async loadProfile() {
+    async loadProfile() {
     try {
+      this.exitProfileEditMode();
       const profile = await API.student.getProfile();
       document.getElementById('stWelcomeName').innerText = profile.fullName;
       document.getElementById('stCollegeBadge').innerText = profile.collegeName || 'Student';
       document.getElementById('stAreaBadge').innerText = profile.preferredArea ? '📍 ' + profile.preferredArea : '📍 Bangalore';
       document.getElementById('stRatingBadge').innerText = '★ ' + (profile.rating || 5.0).toFixed(1);
+
+            // Populate read-only profile view
+      document.getElementById('stViewFullName').innerText = profile.fullName || '-';
+      document.getElementById('stViewEmail').innerText = profile.email || '-';
+      document.getElementById('stViewPhone').innerText = profile.phone || '-';
+      document.getElementById('stViewCollege').innerText = profile.collegeName || '-';
+      document.getElementById('stViewArea').innerText = profile.preferredArea || '-';
+      document.getElementById('stViewRating').innerText = '★ ' + (profile.rating || 5.0).toFixed(1);
+      document.getElementById('stViewSkills').innerText = profile.skills || '-';
+      document.getElementById('stViewBio').innerText = profile.bio || '-';
+      document.getElementById('stViewEmerg').innerText = profile.emergencyContact || '-';
+      document.getElementById('stViewJobsDone').innerText = profile.totalJobsCompleted || 0;
 
       // Populate profile edit form
       document.getElementById('stProfFullName').value = profile.fullName || '';
@@ -50,6 +63,18 @@ const Student = {
     } catch (e) {
       console.warn('Failed to load student profile', e);
     }
+  },
+
+  enterProfileEditMode() {
+    document.getElementById('stProfileView')?.classList.add('d-none');
+    document.getElementById('stProfEditBtn')?.classList.add('d-none');
+    document.getElementById('studentProfileForm')?.classList.remove('d-none');
+  },
+
+  exitProfileEditMode() {
+    document.getElementById('studentProfileForm')?.classList.add('d-none');
+    document.getElementById('stProfileView')?.classList.remove('d-none');
+    document.getElementById('stProfEditBtn')?.classList.remove('d-none');
   },
 
   async updateProfile(e) {
@@ -69,9 +94,10 @@ const Student = {
         emergencyContact: document.getElementById('stProfEmerg').value.trim()
       };
 
-      await API.student.updateProfile(payload);
+            await API.student.updateProfile(payload);
       App.showToast('Profile updated successfully!', 'success');
       await this.loadProfile();
+      this.exitProfileEditMode();
     } catch (err) {
       App.showToast(err.message || 'Failed to update profile', 'danger');
     } finally {

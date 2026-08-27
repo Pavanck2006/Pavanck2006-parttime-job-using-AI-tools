@@ -715,11 +715,62 @@
           </div>
         </div>
 
-        <!-- 8. Profile Edit -->
+                <!-- 8. Profile -->
         <div class="tab-pane fade" id="st-tab-profile">
           <div class="card p-4 border-0 shadow-sm max-w-800 mx-auto">
-            <h5 class="fw-bold mb-3"><i class="bi bi-person-gear text-primary me-2"></i>Update Student Profile</h5>
-            <form id="studentProfileForm">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h5 class="fw-bold mb-0"><i class="bi bi-person-gear text-primary me-2"></i>My Profile</h5>
+              <button type="button" class="btn btn-outline-primary btn-sm" id="stProfEditBtn" onclick="Student.enterProfileEditMode()">
+                <i class="bi bi-pencil-square me-1"></i>Edit Profile
+              </button>
+            </div>
+
+            <div id="stProfileView">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <div class="text-muted small">Full Name</div>
+                  <div class="fw-semibold" id="stViewFullName">-</div>
+                </div>
+                <div class="col-md-6">
+                  <div class="text-muted small">Email</div>
+                  <div class="fw-semibold" id="stViewEmail">-</div>
+                </div>
+                <div class="col-md-6">
+                  <div class="text-muted small">Phone Number</div>
+                  <div class="fw-semibold" id="stViewPhone">-</div>
+                </div>
+                <div class="col-md-6">
+                  <div class="text-muted small">College / University</div>
+                  <div class="fw-semibold" id="stViewCollege">-</div>
+                </div>
+                <div class="col-md-6">
+                  <div class="text-muted small">Preferred Bangalore Area</div>
+                  <div class="fw-semibold" id="stViewArea">-</div>
+                </div>
+                <div class="col-md-6">
+                  <div class="text-muted small">Rating</div>
+                  <div class="fw-semibold" id="stViewRating">-</div>
+                </div>
+                <div class="col-12">
+                  <div class="text-muted small">Skills / Experience</div>
+                  <div class="fw-semibold" id="stViewSkills">-</div>
+                </div>
+                <div class="col-12">
+                  <div class="text-muted small">Short Bio</div>
+                  <div class="fw-semibold" id="stViewBio">-</div>
+                </div>
+                <div class="col-md-6">
+                  <div class="text-muted small">Emergency Contact Phone</div>
+                  <div class="fw-semibold" id="stViewEmerg">-</div>
+                </div>
+                <div class="col-md-6">
+                  <div class="text-muted small">Jobs Completed</div>
+                  <div class="fw-semibold" id="stViewJobsDone">-</div>
+                </div>
+              </div>
+            </div>
+
+            <form id="studentProfileForm" class="d-none">
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label small fw-semibold">Full Name</label>
@@ -750,9 +801,12 @@
                   <input type="text" id="stProfEmerg" class="form-control">
                 </div>
               </div>
-              <div class="mt-4">
+                            <div class="mt-4 d-flex gap-2">
                 <button type="submit" id="stProfSubmitBtn" class="btn btn-primary-custom">
                   <i class="bi bi-check2-circle me-2"></i>Save Changes
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="Student.exitProfileEditMode()">
+                  Cancel
                 </button>
               </div>
             </form>
@@ -770,8 +824,8 @@
       <!-- Welcome Header -->
       <div class="card p-4 mb-4 border-0 shadow-sm rounded-4" style="background: var(--grad-dark); color: white;">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-          <div>
-
+                    <div>
+            <h4 class="mb-1 fw-bold" id="owWelcomeCatering">Catering Name</h4>
             <div class="d-flex align-items-center gap-2 mb-1">
               <span id="owVerificationBadge" class="unverified-badge">Pending Verification</span>
             </div>
@@ -1025,11 +1079,54 @@
           </div>
         </div>
 
-        <!-- 6. Profile -->
+                <!-- 6. Profile -->
         <div class="tab-pane fade" id="ow-tab-profile">
           <div class="card p-4 border-0 shadow-sm max-w-800 mx-auto">
-            <h5 class="fw-bold mb-3"><i class="bi bi-building-gear text-primary me-2"></i>Catering Company Profile</h5>
-            <form id="ownerProfileForm">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h5 class="fw-bold mb-0"><i class="bi bi-building-gear text-primary me-2"></i>My Profile</h5>
+              <button type="button" class="btn btn-outline-primary btn-sm" id="owProfEditBtn" onclick="Owner.enterProfileEditMode()">
+                <i class="bi bi-pencil-square me-1"></i>Edit Profile
+              </button>
+            </div>
+
+            <div id="owProfileView">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <div class="text-muted small">Owner Full Name</div>
+                  <div class="fw-semibold" id="owViewFullName">-</div>
+                </div>
+                <div class="col-md-6">
+                  <div class="text-muted small">Email</div>
+                  <div class="fw-semibold" id="owViewEmail">-</div>
+                </div>
+                <div class="col-md-6">
+                  <div class="text-muted small">Personal Phone</div>
+                  <div class="fw-semibold" id="owViewPhone">-</div>
+                </div>
+                <div class="col-md-6">
+                  <div class="text-muted small">Catering Company Name</div>
+                  <div class="fw-semibold" id="owViewCateringName">-</div>
+                </div>
+                <div class="col-md-6">
+                  <div class="text-muted small">Business Phone</div>
+                  <div class="fw-semibold" id="owViewBizPhone">-</div>
+                </div>
+                <div class="col-md-6">
+                  <div class="text-muted small">Verification Status</div>
+                  <div class="fw-semibold" id="owViewVerification">-</div>
+                </div>
+                <div class="col-12">
+                  <div class="text-muted small">Business / Kitchen Address</div>
+                  <div class="fw-semibold" id="owViewAddress">-</div>
+                </div>
+                <div class="col-md-6">
+                  <div class="text-muted small">Jobs Posted</div>
+                  <div class="fw-semibold" id="owViewJobsPosted">-</div>
+                </div>
+              </div>
+            </div>
+
+            <form id="ownerProfileForm" class="d-none">
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label small fw-semibold">Owner Full Name</label>
@@ -1052,9 +1149,12 @@
                   <textarea id="owProfAddress" class="form-control" rows="2"></textarea>
                 </div>
               </div>
-              <div class="mt-4">
+                            <div class="mt-4 d-flex gap-2">
                 <button type="submit" id="owProfSubmitBtn" class="btn btn-primary-custom">
                   <i class="bi bi-check2-circle me-2"></i>Save Changes
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="Owner.exitProfileEditMode()">
+                  Cancel
                 </button>
               </div>
             </form>
@@ -1300,8 +1400,8 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
-          <!--  -->
-          <div class="">
+          <!-- Quick Demo Buttons -->
+          <div class="m">
             <!-- <div class="small text-muted fw-bold mb-1"><i class="bi bi-magic me-1 text-primary"></i>1-Click Demo Logins:</div> -->
             <!-- <div class="d-flex flex-wrap">
               <button type="button" class="quick-fill-btn" data-email="student.pavan@gmail.com" data-pass="Student@123">Student (Pavan)</button>
