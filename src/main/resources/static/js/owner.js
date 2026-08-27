@@ -67,6 +67,19 @@ async loadProfile() {
       }
     }
 
+    // Profile photo in dashboard header
+    const dashPhoto = document.getElementById('owDashPhoto');
+    const dashWrap = document.getElementById('owDashPhotoWrap');
+    const dashPlaceholder = document.getElementById('owDashPhotoPlaceholder');
+    if (dashPhoto && profile.profilePhotoUrl) {
+      dashPhoto.src = profile.profilePhotoUrl;
+      dashWrap.style.display = 'block';
+      dashPlaceholder.style.display = 'none';
+    } else if (dashWrap) {
+      dashWrap.style.display = 'none';
+      if (dashPlaceholder) dashPlaceholder.style.display = 'flex';
+    }
+
     // ===== EDIT FORM (hidden by default) =====
     const setVal = (id, value) => {
       const el = document.getElementById(id);
