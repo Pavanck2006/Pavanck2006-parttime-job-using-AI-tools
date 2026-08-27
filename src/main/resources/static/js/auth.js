@@ -219,6 +219,10 @@ const Auth = {
       authNav?.classList.remove('d-none');
       dashboardNavBtn?.classList.remove('d-none');
       studentApplicationsSetting?.classList.toggle('d-none', user.role !== 'ROLE_STUDENT');
+      // Hide How It Works / Safety / FAQ after login
+      document.getElementById('navHowItWorks')?.classList.add('d-none');
+      document.getElementById('navSafety')?.classList.add('d-none');
+      document.getElementById('navFaq')?.classList.add('d-none');
 
       if (userDisplayName) userDisplayName.innerText = user.fullName;
 
@@ -249,6 +253,10 @@ const Auth = {
 
       guestNav?.classList.remove('d-none');
       authNav?.classList.add('d-none');
+      // Show How It Works / Safety / FAQ when logged out
+      document.getElementById('navHowItWorks')?.classList.remove('d-none');
+      document.getElementById('navSafety')?.classList.remove('d-none');
+      document.getElementById('navFaq')?.classList.remove('d-none');
       dashboardNavBtn?.classList.add('d-none');
       studentApplicationsSetting?.classList.add('d-none');
       Notifications.stopPolling();
