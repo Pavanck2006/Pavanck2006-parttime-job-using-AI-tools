@@ -24,6 +24,9 @@ async function initializeDatabase() {
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
   // Migration: add location_photo_url if missing
   try { await pool.query('ALTER TABLE catering_jobs ADD COLUMN location_photo_url TEXT'); } catch (e) { if (e.errno !== 1060) throw e; }
+  // Migration: add profile_photo_url to profile tables
+  try { await pool.query('ALTER TABLE student_profiles ADD COLUMN profile_photo_url TEXT'); } catch (e) { if (e.errno !== 1060) throw e; }
+  try { await pool.query('ALTER TABLE owner_profiles ADD COLUMN profile_photo_url TEXT'); } catch (e) { if (e.errno !== 1060) throw e; }
   if (process.env.RUN_SEED !== 'false') {
     const seed = path.join(__dirname, '..', 'src', 'main', 'resources', 'data.sql');
     if (fs.existsSync(seed)) for (const statement of statements(seed)) try { await pool.query(statement); } catch (e) { if (![1062, 1451, 1452].includes(e.errno)) throw e; }

@@ -661,6 +661,25 @@ const App = {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  },
+
+  previewProfilePhoto(input, previewId) {
+    const preview = document.getElementById(previewId);
+    if (!preview) return;
+    const img = preview.querySelector('img');
+    if (input.files && input.files[0] && img) {
+      if (input.files[0].size > 5 * 1024 * 1024) {
+        this.showToast('Photo too large. Max 5MB.', 'warning');
+        input.value = '';
+        preview.classList.add('d-none');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => { img.src = e.target.result; preview.classList.remove('d-none'); };
+      reader.readAsDataURL(input.files[0]);
+    } else {
+      preview.classList.add('d-none');
+    }
   }
 };
 

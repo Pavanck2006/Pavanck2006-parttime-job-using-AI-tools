@@ -726,6 +726,10 @@
             </div>
 
             <div id="stProfileView">
+              <div class="text-center mb-3">
+                <img id="stViewPhoto" src="" alt="Profile" class="rounded-circle mb-2" style="width:90px;height:90px;object-fit:cover;display:none" onerror="this.style.display='none'">
+                <div id="stViewPhotoPlaceholder" class="bg-primary-subtle text-primary rounded-circle mx-auto d-flex align-items-center justify-content-center" style="width:90px;height:90px;font-size:2rem;"><i class="bi bi-person-fill"></i></div>
+              </div>
               <div class="row g-3">
                 <div class="col-md-6">
                   <div class="text-muted small">Full Name</div>
@@ -799,6 +803,11 @@
                 <div class="col-md-6">
                   <label class="form-label small fw-semibold">Emergency Contact Phone</label>
                   <input type="text" id="stProfEmerg" class="form-control">
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-semibold">Profile Photo</label>
+                  <input type="file" id="stProfPhoto" class="form-control" accept="image/*" onchange="App.previewProfilePhoto(this,'stProfPhotoPreview')">
+                  <div id="stProfPhotoPreview" class="mt-2 d-none"><img src="" alt="Preview" class="rounded" style="max-height:80px;object-fit:cover"></div>
                 </div>
               </div>
                             <div class="mt-4 d-flex gap-2">
@@ -1099,6 +1108,10 @@
             </div>
 
             <div id="owProfileView">
+              <div class="text-center mb-3">
+                <img id="owViewPhoto" src="" alt="Profile" class="rounded-circle mb-2" style="width:90px;height:90px;object-fit:cover;display:none" onerror="this.style.display='none'">
+                <div id="owViewPhotoPlaceholder" class="bg-success-subtle text-success rounded-circle mx-auto d-flex align-items-center justify-content-center" style="width:90px;height:90px;font-size:2rem;"><i class="bi bi-building"></i></div>
+              </div>
               <div class="row g-3">
                 <div class="col-md-6">
                   <div class="text-muted small">Owner Full Name</div>
@@ -1156,6 +1169,11 @@
                 <div class="col-12">
                   <label class="form-label small fw-semibold">Business / Kitchen Address</label>
                   <textarea id="owProfAddress" class="form-control" rows="2"></textarea>
+                </div>
+                <div class="col-12">
+                  <label class="form-label small fw-semibold">Profile Photo</label>
+                  <input type="file" id="owProfPhoto" class="form-control" accept="image/*" onchange="App.previewProfilePhoto(this,'owProfPhotoPreview')">
+                  <div id="owProfPhotoPreview" class="mt-2 d-none"><img src="" alt="Preview" class="rounded" style="max-height:80px;object-fit:cover"></div>
                 </div>
               </div>
                             <div class="mt-4 d-flex gap-2">

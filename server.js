@@ -224,6 +224,7 @@ function profile(r) {
     collegeName: r.college_name, preferredArea: r.preferred_area,
     skills: r.skills, bio: r.bio,
     emergencyContact: r.emergency_contact,
+    profilePhotoUrl: r.profile_photo_url,
     totalJobsCompleted: r.total_jobs_completed, rating: r.rating,
     cateringName: r.catering_name,
     businessAddress: r.business_address,
@@ -231,7 +232,8 @@ function profile(r) {
     verified: r.verification_status === 'VERIFIED',
     verificationStatus: r.verification_status,
     verifiedAt: r.verified_at,
-    totalJobsPosted: r.total_jobs_posted
+    totalJobsPosted: r.total_jobs_posted,
+    profilePhotoUrl: r.profile_photo_url
   } : null;
 }
 
@@ -281,8 +283,8 @@ app.put('/api/student/profile', auth, guard('ROLE_STUDENT'), async (req, res, ne
     const b = req.body;
     await transaction(async c => {
       await c.query('UPDATE users SET full_name=COALESCE(?,full_name),phone=COALESCE(?,phone) WHERE id=?', [b.fullName, b.phone, req.user.id]);
-      await c.query('UPDATE student_profiles SET college_name=?,preferred_area=?,skills=?,bio=?,emergency_contact=? WHERE user_id=?',
-        [b.collegeName || null, b.preferredArea || null, b.skills || null, b.bio || null, b.emergencyContact || null, req.user.id]);
+      await c.query('UPDATE student_profiles SET college_name=?,preferred_area=?,skills=?,bio=?,emergency_contact=?,profile_photo_url=COALESCE(?,profile_photo_url) WHERE user_id=?',
+        [b.collegeName || null, b.preferredArea || null, b.skills || null, b.bio || null, b.emergencyContact || null, b.profilePhotoUrl || null, req.user.id]);
     });
     ok(res, profile(await current(req, 'student')), 'Profile updated successfully');
   } catch (e) { next(e); }
@@ -378,8 +380,8 @@ app.put('/api/owner/profile', auth, guard('ROLE_OWNER'), async (req, res, next) 
     const b = req.body;
     await transaction(async c => {
       await c.query('UPDATE users SET full_name=COALESCE(?,full_name),phone=COALESCE(?,phone) WHERE id=?', [b.fullName, b.phone, req.user.id]);
-      await c.query('UPDATE owner_profiles SET catering_name=COALESCE(?,catering_name),business_address=?,business_phone=? WHERE user_id=?',
-        [b.cateringName, b.businessAddress || null, b.businessPhone || null, req.user.id]);
+      await c.query('UPDATE owner_profiles SET catering_name=COALESCE(?,catering_name),business_address=?,business_phone=?,profile_photo_url=COALESCE(?,profile_photo_url) WHERE user_id=?',
+        [b.cateringName, b.businessAddress || null, b.businessPhone || null, b.profilePhotoUrl || null, req.user.id]);
     });
     ok(res, profile(await current(req, 'owner')), 'Profile updated successfully');
   } catch (e) { next(e); }

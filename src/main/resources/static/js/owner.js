@@ -55,6 +55,18 @@ async loadProfile() {
     setText('owViewJobsPosted', profile.totalJobsPosted ?? 0);
     setText('owViewVerification', profile.verified ? 'Verified' : (profile.verificationStatus || 'Pending Verification'));
 
+    // Profile photo display
+    const photoImg = document.getElementById('owViewPhoto');
+    if (photoImg) {        if (profile.profilePhotoUrl) {
+        photoImg.src = profile.profilePhotoUrl;
+        photoImg.style.display = 'block';
+        document.getElementById('owViewPhotoPlaceholder')?.classList.add('d-none');
+      } else {
+        photoImg.style.display = 'none';
+        document.getElementById('owViewPhotoPlaceholder')?.classList.remove('d-none');
+      }
+    }
+
     // ===== EDIT FORM (hidden by default) =====
     const setVal = (id, value) => {
       const el = document.getElementById(id);
@@ -86,6 +98,27 @@ async updateProfile(e) {
       businessAddress: document.getElementById('owProfAddress').value.trim(),
       businessPhone: document.getElementById('owProfBizPhone').value.trim()
     };
+
+    // Handle profile photo upload if selected
+    let profilePhotoUrl = null;
+    const photoFile = document.getElementById('owProfPhoto').files[0];
+    if (photoFile) {
+      if (photoFile.size > 5 * 1024 * 1024) {
+        App.showToast('Photo too large. Max 5MB.', 'warning');
+        return;
+      }
+      const fd = new FormData();
+      fd.append('image', photoFile);
+      const uploadRes = await fetch('/api/upload/image', {
+        method: 'POST',
+        headers: {'Authorization': `Bearer ${API.getToken()}`},
+        body: fd
+      });
+      const uploadData = await uploadRes.json();
+      if (!uploadRes.ok) throw new Error(uploadData.message || 'Failed to upload photo');
+      profilePhotoUrl = uploadData.data?.url;
+    }
+    if (profilePhotoUrl) payload.profilePhotoUrl = profilePhotoUrl;
 
     await API.owner.updateProfile(payload);
     App.showToast('Catering profile updated successfully!', 'success');

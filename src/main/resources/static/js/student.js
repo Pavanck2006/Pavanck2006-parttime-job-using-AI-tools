@@ -52,6 +52,19 @@ const Student = {
       document.getElementById('stViewEmerg').innerText = profile.emergencyContact || '-';
       document.getElementById('stViewJobsDone').innerText = profile.totalJobsCompleted || 0;
 
+      // Profile photo display
+      const photoImg = document.getElementById('stViewPhoto');
+      if (photoImg) {
+        if (profile.profilePhotoUrl) {
+          photoImg.src = profile.profilePhotoUrl;
+          photoImg.style.display = 'block';
+          document.getElementById('stViewPhotoPlaceholder')?.classList.add('d-none');
+        } else {
+          photoImg.style.display = 'none';
+          document.getElementById('stViewPhotoPlaceholder')?.classList.remove('d-none');
+        }
+      }
+
       // Populate profile edit form
       document.getElementById('stProfFullName').value = profile.fullName || '';
       document.getElementById('stProfPhone').value = profile.phone || '';
@@ -84,6 +97,25 @@ const Student = {
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
 
+      let profilePhotoUrl = null;
+      const photoFile = document.getElementById('stProfPhoto').files[0];
+      if (photoFile) {
+        if (photoFile.size > 5 * 1024 * 1024) {
+          App.showToast('Photo too large. Max 5MB.', 'warning');
+          return;
+        }
+        const fd = new FormData();
+        fd.append('image', photoFile);
+        const uploadRes = await fetch('/api/upload/image', {
+          method: 'POST',
+          headers: {'Authorization': `Bearer ${API.getToken()}`},
+          body: fd
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok) throw new Error(uploadData.message || 'Failed to upload photo');
+        profilePhotoUrl = uploadData.data?.url;
+      }
+
       const payload = {
         fullName: document.getElementById('stProfFullName').value.trim(),
         phone: document.getElementById('stProfPhone').value.trim(),
@@ -91,7 +123,8 @@ const Student = {
         preferredArea: document.getElementById('stProfArea').value.trim(),
         skills: document.getElementById('stProfSkills').value.trim(),
         bio: document.getElementById('stProfBio').value.trim(),
-        emergencyContact: document.getElementById('stProfEmerg').value.trim()
+        emergencyContact: document.getElementById('stProfEmerg').value.trim(),
+        profilePhotoUrl
       };
 
             await API.student.updateProfile(payload);
