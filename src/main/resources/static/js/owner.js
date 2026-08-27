@@ -16,13 +16,19 @@ const Owner = {
     }
   },
 
-  async loadProfile() {
-    try {
-      const profile = await API.owner.getProfile();
-      document.getElementById('owWelcomeCatering').innerText = profile.cateringName;
-      document.getElementById('owOwnerName').innerText = profile.fullName;
-      
-      const badgeEl = document.getElementById('owVerificationBadge');
+async loadProfile() {
+  try {
+    const profile = await API.owner.getProfile();
+
+    // ===== Dashboard header (safe) =====
+    const cateringEl = document.getElementById('owWelcomeCatering');
+    if (cateringEl) cateringEl.innerText = profile.cateringName || 'Catering Name';
+
+    const ownerNameEl = document.getElementById('owOwnerName');
+    if (ownerNameEl) ownerNameEl.innerText = profile.fullName || 'Owner';
+
+    const badgeEl = document.getElementById('owVerificationBadge');
+    if (badgeEl) {
       if (profile.verified) {
         badgeEl.className = 'verified-badge';
         badgeEl.innerHTML = '<i class="bi bi-patch-check-fill"></i> Verified Catering Business';
@@ -32,43 +38,66 @@ const Owner = {
         badgeEl.innerHTML = '<i class="bi bi-hourglass-split"></i> Pending Admin Verification';
         document.getElementById('owUnverifiedAlert')?.classList.remove('d-none');
       }
-
-      // Populate profile edit form
-      document.getElementById('owProfFullName').value = profile.fullName || '';
-      document.getElementById('owProfPhone').value = profile.phone || '';
-      document.getElementById('owProfCateringName').value = profile.cateringName || '';
-      document.getElementById('owProfAddress').value = profile.businessAddress || '';
-      document.getElementById('owProfBizPhone').value = profile.businessPhone || '';
-    } catch (e) {
-      console.warn('Failed to load owner profile', e);
     }
-  },
 
-  async updateProfile(e) {
-    e.preventDefault();
-    const btn = document.getElementById('owProfSubmitBtn');
-    try {
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+    // ===== VIEW MODE (Settings → My Profile) =====
+    const setText = (id, value) => {
+      const el = document.getElementById(id);
+      if (el) el.innerText = value || '-';
+    };
 
-      const payload = {
-        fullName: document.getElementById('owProfFullName').value.trim(),
-        phone: document.getElementById('owProfPhone').value.trim(),
-        cateringName: document.getElementById('owProfCateringName').value.trim(),
-        businessAddress: document.getElementById('owProfAddress').value.trim(),
-        businessPhone: document.getElementById('owProfBizPhone').value.trim()
-      };
+    setText('owViewFullName', profile.fullName);
+    setText('owViewEmail', profile.email);
+    setText('owViewPhone', profile.phone);
+    setText('owViewCateringName', profile.cateringName);
+    setText('owViewBizPhone', profile.businessPhone);
+    setText('owViewAddress', profile.businessAddress);
+    setText('owViewJobsPosted', profile.totalJobsPosted ?? 0);
+    setText('owViewVerification', profile.verified ? 'Verified' : (profile.verificationStatus || 'Pending Verification'));
 
-      await API.owner.updateProfile(payload);
-      App.showToast('Catering profile updated successfully!', 'success');
-      await this.loadProfile();
-    } catch (err) {
-      App.showToast(err.message || 'Failed to update profile', 'danger');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="bi bi-check2-circle me-2"></i>Save Changes';
-    }
-  },
+    // ===== EDIT FORM (hidden by default) =====
+    const setVal = (id, value) => {
+      const el = document.getElementById(id);
+      if (el) el.value = value || '';
+    };
+
+    setVal('owProfFullName', profile.fullName);
+    setVal('owProfPhone', profile.phone);
+    setVal('owProfCateringName', profile.cateringName);
+    setVal('owProfBizPhone', profile.businessPhone);
+    setVal('owProfAddress', profile.businessAddress);
+
+  } catch (e) {
+    console.warn('Failed to load owner profile', e);
+  }
+},
+
+async updateProfile(e) {
+  e.preventDefault();
+  const btn = document.getElementById('owProfSubmitBtn');
+  try {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+
+    const payload = {
+      fullName: document.getElementById('owProfFullName').value.trim(),
+      phone: document.getElementById('owProfPhone').value.trim(),
+      cateringName: document.getElementById('owProfCateringName').value.trim(),
+      businessAddress: document.getElementById('owProfAddress').value.trim(),
+      businessPhone: document.getElementById('owProfBizPhone').value.trim()
+    };
+
+    await API.owner.updateProfile(payload);
+    App.showToast('Catering profile updated successfully!', 'success');
+    await this.loadProfile();
+    this.exitProfileEditMode();          // ← add this line
+  } catch (err) {
+    App.showToast(err.message || 'Failed to update profile', 'danger');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check2-circle me-2"></i>Save Changes';
+  }
+},
 
   async loadMyJobs() {
     const container = document.getElementById('owJobsList');
@@ -467,5 +496,17 @@ const Owner = {
     } catch (err) {
       container.innerHTML = `<div class="text-center text-danger p-3">Failed to load complaints: ${App.escapeHtml(err.message)}</div>`;
     }
+  },
+
+  enterProfileEditMode() {
+    document.getElementById('owProfileView')?.classList.add('d-none');
+    document.getElementById('ownerProfileForm')?.classList.remove('d-none');
+    document.getElementById('owProfEditBtn')?.classList.add('d-none');
+  },
+
+  exitProfileEditMode() {
+    document.getElementById('ownerProfileForm')?.classList.add('d-none');
+    document.getElementById('owProfileView')?.classList.remove('d-none');
+    document.getElementById('owProfEditBtn')?.classList.remove('d-none');
   }
 };
