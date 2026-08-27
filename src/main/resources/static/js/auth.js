@@ -304,7 +304,7 @@ const Auth = {
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sending...';
       const data = await API.request('/auth/forgot-password', {method: 'POST', body: JSON.stringify({email})});
-      document.getElementById('fpVerificationId').value = data.data.verificationId;
+      document.getElementById('fpVerificationId').value = data.verificationId;
       document.getElementById('fpStep1').classList.add('d-none');
       document.getElementById('fpStep2').classList.remove('d-none');
       App.showToast('Verification code sent to your email!', 'success');
