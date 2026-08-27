@@ -520,15 +520,23 @@
       <!-- Welcome Header -->
       <div class="card bg-grad-primary text-white p-4 mb-4 border-0 shadow-sm rounded-4" style="background: var(--grad-primary);">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-          <div>
-            <span class="badge bg-white text-primary mb-2 fw-bold">Student Portal</span>
-            <h2 class="fw-bold mb-1">Welcome, <span id="stWelcomeName">Student</span>!</h2>
-            <div class="d-flex flex-wrap gap-2 text-white-50 small">
-              <span id="stCollegeBadge">College</span>
-              <span>•</span>
-              <span id="stAreaBadge">📍 Preferred Area</span>
-              <span>•</span>
-              <span id="stRatingBadge" class="text-warning">★ 5.0</span>
+          <div class="d-flex align-items-center gap-3">
+            <div id="stDashPhotoWrap" class="flex-shrink-0" style="display:none;">
+              <img id="stDashPhoto" src="" alt="Profile" class="rounded-circle" style="width:64px;height:64px;object-fit:cover;border:3px solid rgba(255,255,255,0.5);">
+            </div>
+            <div id="stDashPhotoPlaceholder" class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle bg-white bg-opacity-25" style="width:64px;height:64px;">
+              <i class="bi bi-person-fill fs-2 text-white"></i>
+            </div>
+            <div>
+              <span class="badge bg-white text-primary mb-2 fw-bold">Student Portal</span>
+              <h2 class="fw-bold mb-1">Welcome, <span id="stWelcomeName">Student</span>!</h2>
+              <div class="d-flex flex-wrap gap-2 text-white-50 small">
+                <span id="stCollegeBadge">College</span>
+                <span>•</span>
+                <span id="stAreaBadge">📍 Preferred Area</span>
+                <span>•</span>
+                <span id="stRatingBadge" class="text-warning">★ 5.0</span>
+              </div>
             </div>
           </div>
           <button class="btn btn-light btn-sm fw-bold text-primary px-3" onclick="App.navigate('jobs')">
@@ -833,12 +841,20 @@
       <!-- Welcome Header -->
       <div class="card p-4 mb-4 border-0 shadow-sm rounded-4" style="background: var(--grad-dark); color: white;">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-                    <div>
-            <h4 class="mb-1 fw-bold" id="owWelcomeCatering">Catering Name</h4>
-            <div class="d-flex align-items-center gap-2 mb-1">
-              <span id="owVerificationBadge" class="unverified-badge">Pending Verification</span>
+          <div class="d-flex align-items-center gap-3">
+            <div id="owDashPhotoWrap" class="flex-shrink-0" style="display:none;">
+              <img id="owDashPhoto" src="" alt="Profile" class="rounded-circle" style="width:64px;height:64px;object-fit:cover;border:3px solid rgba(255,255,255,0.5);">
             </div>
-            <div class="text-white-50 small">Owner: <span id="owOwnerName">Owner</span></div>
+            <div id="owDashPhotoPlaceholder" class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle bg-white bg-opacity-25" style="width:64px;height:64px;">
+              <i class="bi bi-building fs-2 text-white"></i>
+            </div>
+            <div>
+              <h4 class="mb-1 fw-bold" id="owWelcomeCatering">Catering Name</h4>
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <span id="owVerificationBadge" class="unverified-badge">Pending Verification</span>
+              </div>
+              <div class="text-white-50 small">Owner: <span id="owOwnerName">Owner</span></div>
+            </div>
           </div>
           <button class="btn btn-emerald btn-sm px-3" onclick="document.querySelector('button[data-bs-target=\'#ow-tab-create\']').click()">
             <i class="bi bi-plus-circle me-1"></i>Post New Job
