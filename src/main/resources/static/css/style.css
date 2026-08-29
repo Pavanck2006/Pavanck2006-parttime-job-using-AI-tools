@@ -1082,6 +1082,21 @@ a:hover { color: var(--primary-hover); }
   box-shadow: var(--shadow-xl);
 }
 
+/* Force notification dropdown to always open on the right */
+#notifDropdownBtn ~ .dropdown-menu {
+  right: 0 !important;
+  left: auto !important;
+}
+
+@media (max-width: 576px) {
+  #notifDropdownBtn ~ .dropdown-menu {
+    right: 0 !important;
+    left: auto !important;
+    width: calc(100vw - 20px);
+    max-width: 380px;
+  }
+}
+
 .notif-item {
   padding: 12px 18px;
   border-bottom: 1px solid var(--border-light);
@@ -1099,7 +1114,7 @@ a:hover { color: var(--primary-hover); }
 @media (max-width: 576px) {
   .notif-dropdown {
     width: calc(100vw - 20px);
-    right: -60px;
+    right: 0;
   }
 }
 
