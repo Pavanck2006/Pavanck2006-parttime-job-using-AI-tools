@@ -139,21 +139,6 @@ Navigate to **http://localhost:8080**
 
 ---
 
-## Demo Accounts
-
-Pre-seeded and ready for immediate login:
-
-| Role | Email | Password |
-|---|---|---|
-| **Admin** | `admin@parttimejob.com` | `Admin@123` |
-| **Owner** (verified) | `owner.srilakshmi@catering.com` | `Owner@123` |
-| **Owner** (pending) | `owner.royal@catering.com` | `Owner@123` |
-| **Student** | `student.pavan@gmail.com` | `Student@123` |
-| **Student** | `student.ananya@gmail.com` | `Student@123` |
-
-The login dialog includes quick-fill buttons for one-click testing.
-
----
 
 ## API Reference
 
