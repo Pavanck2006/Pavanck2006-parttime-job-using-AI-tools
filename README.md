@@ -1,156 +1,330 @@
 # PartTime Job Platform
 
-> **Tagline**: *"Find Work. Earn More. Work Safely."*
+> **"Find Work. Earn More. Work Safely."**
 
-**PartTime Job** is a modern, production-grade full-stack web application designed to connect college students looking for flexible short-term/part-time employment with verified catering businesses and event organizers needing temporary staff (such as food servers, kitchen assistants, cleaners, and event helpers).
-
----
-
-## 1. Key Features
-
-- **Multi-Role Authentication & Security**:
-  - Role-based Access Control (**STUDENT**, **OWNER**, **ADMIN**) with JWT Bearer tokens and BCrypt password hashing.
-  - Suspended user protection (suspended accounts cannot log in, apply, or create jobs).
-- **Location & Contact Privacy**:
-  - Public job browsing displays only general work areas (e.g., *Kengeri, Bangalore*).
-  - Exact venue addresses and organizer contact details are **locked** until the owner formally accepts a student's application.
-- **On-Spot Payment & Dispute System**:
-  - Built-in workflow for On-Spot payments.
-  - Owners mark shifts as `PAID`; students confirm receipt (`CONFIRMED`).
-  - Formal complaint module (`PAYMENT_NOT_RECEIVED`, `PAYMENT_PARTIALLY_RECEIVED`, `OWNER_BEHAVIOUR`, `FAKE_JOB`, `WRONG_LOCATION`) with admin resolution workflow.
-- **Worker Slot Limits**:
-  - Strict limit enforcement prevents over-hiring beyond the required worker count.
-  - Automatic status transition to `FILLED` when capacity is reached.
-- **Owner Verification**:
-  - Verified badges (`VERIFIED`) awarded by platform admins.
-  - Safety advisory notices shown to students when viewing jobs from pending/unverified organizers.
-- **In-App Notifications**:
-  - Real-time notification system for application received, accepted, rejected, cancelled, and payment updates.
-- **Audit Logging**:
-  - Detailed audit trail tracking all mission-critical events.
+A production-grade full-stack job marketplace connecting college students with catering businesses and event organizers needing temporary staff — food servers, kitchen assistants, cleaners, and event helpers across Bangalore.
 
 ---
 
-## 2. Technology Stack
+## Features
 
-- **Backend**: Node.js, CommonJS, Express, mysql2/promise, bcryptjs, jsonwebtoken, dotenv.
-- **Database**: MySQL 8+ (with in-memory H2 profile support for zero-config testing and local demo).
-- **Frontend**: HTML5, CSS3 (Custom Design System with Glassmorphism, CSS variables), JavaScript (ES6+ Modules), Bootstrap 5.3.3, Bootstrap Icons.
-- **Build Tool**: Apache Maven.
+### Core Platform
+- **Three-Role System** — Student, Owner (catering business), and Admin with JWT authentication and bcrypt password hashing
+- **Job Discovery & Application** — Public job browsing with filters (area, work type, date, payment range), plus per-job application with notes
+- **Location Privacy** — General work areas shown publicly; exact venue addresses and organizer contacts unlock only after acceptance
+- **On-Spot Payment Workflow** — Owners mark shifts as paid, students confirm receipt; built-in dispute resolution with six complaint types
+- **Worker Slot Limits** — Strict capacity enforcement prevents over-hiring; automatic `FILLED` status when full
+- **Owner Verification** — Admin-granted verified badges; safety advisory notices shown for unverified organizers
+
+### Communication & Safety
+- **In-App Notifications** — Real-time alerts for application status changes, payment updates, and system events
+- **Complaint Chat** — Dedicated messaging thread between complainant and target user per dispute
+- **Audit Logging** — Full trail of all critical platform actions
+- **Email OTP Verification** — 6-digit code sent via SMTP during registration and password reset
+
+### Admin Dashboard
+- Platform-wide metrics (total users, jobs, open disputes, active listings)
+- User management with suspend/reactivate controls
+- Owner verification grant/revoke
+- Job moderation and removal
+- Dispute resolution with formal admin remarks
 
 ---
 
-## 3. Pre-Seeded Demo Accounts
+## Tech Stack
 
-The application automatically seeds the database with realistic sample data:
-
-| Role | Email | Password | Details |
-|---|---|---|---|
-| **Admin** | `admin@parttimejob.com` | `Admin@123` | Platform Administrator |
-| **Verified Owner** | `owner.srilakshmi@catering.com` | `Owner@123` | Sri Lakshmi Catering Services |
-| **Pending Owner** | `owner.royal@catering.com` | `Owner@123` | Royal Grand Events & Catering |
-| **Student 1** | `student.pavan@gmail.com` | `Student@123` | Pavan Kumar (BIT Bangalore) |
-| **Student 2** | `student.ananya@gmail.com` | `Student@123` | Ananya Sharma (RV College) |
-
-*Note: The login dialog features 1-click quick-fill buttons for instant testing.*
+| Layer | Technology |
+|---|---|
+| **Runtime** | Node.js 18+ |
+| **Framework** | Express 4.x |
+| **Database** | MySQL 8+ (`mysql2/promise`) |
+| **Auth** | JWT (`jsonwebtoken`) + bcryptjs |
+| **File Uploads** | Multer (images up to 5 MB) |
+| **Email** | Nodemailer (SMTP) |
+| **Frontend** | Vanilla HTML5 / CSS3 / ES6+ JavaScript |
+| **UI Framework** | Bootstrap 5.3.3 + Bootstrap Icons |
+| **Styling** | Custom design system with CSS variables, dark mode support |
+| **Config** | dotenv |
 
 ---
 
-## 4. Running the Application Locally
+## Project Structure
 
-### Node.js + MySQL (current backend)
-1. Install Node.js 18+ and MySQL 8+, then create the database: `CREATE DATABASE parttimejob_db;`.
-2. Copy `.env.example` to `.env` and set `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `JWT_SECRET`, and optional `PORT`/`RUN_SEED`.
-3. Install and run:
+```
+parttime-job-platform-node/
+├── server.js                    # Express app — all API routes, auth, file upload, startup
+├── server/
+│   ├── db.js                    # MySQL connection pool, schema init, seed logic
+│   └── chat.js                  # Complaint messaging routes (/api/chat)
+├── package.json
+├── .env                         # Environment config (not committed)
+│
+└── src/main/resources/
+    ├── schema.sql               # Full database DDL (9 tables)
+    ├── data.sql                 # Seed data (demo accounts, sample jobs)
+    ├── application.yml          # Legacy Spring config (unused by Node backend)
+    ├── application-h2.yml       # Legacy H2 profile config
+    │
+    └── static/                  # Frontend — served by Express
+        ├── index.html           # Single-page app (all views, modals, templates)
+        ├── css/
+        │   └── style.css        # Custom design system (~1700 lines)
+        └── js/
+            ├── api.js           # HTTP client wrapper (JWT, error handling)
+            ├── app.js           # Router, view switching, job browsing, apply flow
+            ├── auth.js          # Login, register, OTP, password reset
+            ├── student.js       # Student dashboard, applications, payments
+            ├── owner.js         # Owner dashboard, job CRUD, applicant management
+            ├── admin.js         # Admin dashboard, user/job/report moderation
+            ├── chat.js          # Complaint messaging UI
+            └── notifications.js # Notification bell, unread count, mark-read
+```
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- **Node.js** 18 or later — [Download](https://nodejs.org)
+- **MySQL** 8+ — [Download](https://dev.mysql.com/downloads/mysql/) or use XAMPP / Docker
+
+### 1. Clone & install
+
 ```bash
+git clone <your-repo-url>
+cd parttime-job-platform-node
 npm install
-npm start
 ```
-The server automatically executes `src/main/resources/schema.sql` and, when `RUN_SEED=true`, safely executes `data.sql` with duplicate-safe inserts.
 
-During registration, users verify their email with a one-time 6-digit code. The code is sent only by email. Configure `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM` before starting the server.
+### 2. Configure environment
 
-### Legacy Java/H2 mode
-The original Java implementation remains untouched and can still be run with:
-If MySQL is not installed or you want a quick demo:
+Create a `.env` file in the project root:
+
+```env
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_mysql_password
+DB_NAME=parttimejob_db
+JWT_SECRET=some-random-secret-string
+PORT=8080
+
+# Email OTP (optional — required for registration)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=you@gmail.com
+SMTP_PASSWORD=your_app_password
+SMTP_FROM="PartTime Job <you@gmail.com>"
+```
+
+> If SMTP is not configured, the OTP step will return a 503 error. For local testing, use the pre-seeded accounts below.
+
+### 3. Start the server
+
 ```bash
-mvn spring-boot:run -Dspring-boot.run.profiles=h2
+npm start          # production
+npm run dev        # development with --watch auto-reload
 ```
 
-Open your browser and navigate to:
-```
-http://localhost:8080
-```
+The server will:
+1. Create the `parttimejob_db` database if it doesn't exist
+2. Run all DDL from `schema.sql`
+3. Seed demo accounts and sample jobs from `data.sql`
+4. Listen on `http://localhost:8080`
+
+### 4. Open in browser
+
+Navigate to **http://localhost:8080**
 
 ---
 
-## 5. REST API Documentation
+## Demo Accounts
 
-### Authentication (`/api/auth`)
-- `POST /api/auth/register` - Register a new Student or Owner account.
-- `POST /api/auth/login` - Authenticate and receive JWT bearer token.
+Pre-seeded and ready for immediate login:
 
-### Public & Job Discovery (`/api/public/jobs`)
-- `GET /api/public/jobs` - Search and filter open jobs (query params: `area`, `location`, `workType`, `jobDate`, `minPayment`, `maxPayment`, `paymentType`).
-- `GET /api/public/jobs/recommended` - Get ranked recommendations.
-- `GET /api/public/jobs/{id}` - Get job details (with conditional privacy unlocking).
+| Role | Email | Password |
+|---|---|---|
+| **Admin** | `admin@parttimejob.com` | `Admin@123` |
+| **Owner** (verified) | `owner.srilakshmi@catering.com` | `Owner@123` |
+| **Owner** (pending) | `owner.royal@catering.com` | `Owner@123` |
+| **Student** | `student.pavan@gmail.com` | `Student@123` |
+| **Student** | `student.ananya@gmail.com` | `Student@123` |
 
-### Student Portal (`/api/student`)
-- `GET /api/student/profile` & `PUT /api/student/profile` - Manage student profile.
-- `GET /api/student/dashboard` - Get student stats (available, applied, accepted, completed, earnings).
-- `POST /api/student/jobs/{jobId}/apply` - Apply for a catering shift.
-- `GET /api/student/applications` - List all submitted applications.
-- `GET /api/student/applications/accepted` - List accepted shifts with unlocked venues and contact numbers.
-- `GET /api/student/applications/completed` - List completed shifts.
-- `DELETE /api/student/applications/{id}` - Cancel pending application.
-- `PUT /api/student/applications/{id}/confirm-payment` - Confirm receipt of on-spot payment.
-- `GET /api/student/payments` - View full payment history.
-
-### Catering Owner Portal (`/api/owner`)
-- `GET /api/owner/profile` & `PUT /api/owner/profile` - Manage catering company profile.
-- `POST /api/owner/jobs` - Create new catering job post with "On-Spot Payment" checkbox.
-- `GET /api/owner/jobs` - List owner's posted jobs.
-- `GET /api/owner/jobs/{id}` - Get full job details and applicants list.
-- `PUT /api/owner/jobs/{id}` - Update job details.
-- `DELETE /api/owner/jobs/{id}` - Cancel job and notify applicants.
-- `GET /api/owner/jobs/{id}/applications` - List applicants for specific job.
-- `PUT /api/owner/applications/{id}/accept` - Accept applicant (enforces worker limit).
-- `PUT /api/owner/applications/{id}/reject` - Reject applicant.
-- `PUT /api/owner/applications/{id}/attendance` - Mark worker attendance (`PRESENT`/`ABSENT`).
-- `PUT /api/owner/jobs/{id}/complete` - Mark shift as completed.
-- `PUT /api/owner/applications/{id}/payment` - Mark payment as `PAID`.
-- `GET /api/owner/payments` - List owner payout records.
-
-### Complaints & Reports (`/api/reports`)
-- `POST /api/reports` - File dispute/complaint against owner or student.
-- `GET /api/reports/my-reports` - View user's filed reports.
-
-### Admin Oversight (`/api/admin`)
-- `GET /api/admin/dashboard` - Platform metrics and dispute counts.
-- `GET /api/admin/users` - List all registered platform users.
-- `PUT /api/admin/owners/{id}/verify` - Grant or revoke verified catering badge.
-- `PUT /api/admin/users/{id}/suspend` - Suspend or reactivate user account.
-- `GET /api/admin/jobs` - List and moderate all jobs.
-- `DELETE /api/admin/jobs/{id}` - Remove fraudulent job.
-- `GET /api/admin/reports` - List all platform disputes.
-- `PUT /api/admin/reports/{id}/resolve` - Formally resolve dispute with admin remarks.
-
-### Notifications (`/api/notifications`)
-- `GET /api/notifications` - Retrieve in-app notifications.
-- `GET /api/notifications/unread-count` - Get unread count badge.
-- `PUT /api/notifications/{id}/read` - Mark single notification as read.
-- `PUT /api/notifications/read-all` - Mark all notifications as read.
+The login dialog includes quick-fill buttons for one-click testing.
 
 ---
 
-## 6. Database ER Structure
+## API Reference
 
-```text
-[User] 1 ──── 1 [StudentProfile] 1 ──── N [JobApplication] N ──── 1 [CateringJob]
-  │                                            │                          │
-  ├──── 1 [OwnerProfile] 1 ────────────────────┼──────────────────────────┘
-  │                                            │
-  ├──── N [Report] (as Reporter or Target)     ├──── 1 [PaymentRecord]
-  │                                            │
-  ├──── N [Notification]                       └──── N [AuditLog]
+All endpoints return JSON. Authenticated routes require `Authorization: Bearer <token>`.
+
+### Authentication
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/auth/request-otp` | Send email verification code |
+| POST | `/api/auth/verify-otp` | Verify 6-digit email code |
+| POST | `/api/auth/register` | Create Student or Owner account |
+| POST | `/api/auth/login` | Sign in, receive JWT |
+| POST | `/api/auth/forgot-password` | Request password reset code |
+| POST | `/api/auth/forgot-password/verify` | Verify reset code |
+| POST | `/api/auth/forgot-password/reset` | Set new password |
+| DELETE | `/api/account` | Delete own account (requires password) |
+
+### Public Job Discovery
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/public/jobs` | List open jobs (filters: `area`, `workType`, `jobDate`, `minPayment`, `maxPayment`, `paymentType`) |
+| GET | `/api/public/jobs/recommended` | Ranked job recommendations |
+| GET | `/api/public/jobs/:id` | Single job details |
+
+### Student
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/student/profile` | Get profile |
+| PUT | `/api/student/profile` | Update profile |
+| GET | `/api/student/dashboard` | Stats (available, applied, accepted, completed, earnings) |
+| POST | `/api/student/jobs/:jobId/apply` | Apply for a shift |
+| GET | `/api/student/applications` | All applications |
+| GET | `/api/student/applications/accepted` | Accepted shifts (unlocked details) |
+| GET | `/api/student/applications/completed` | Completed shifts |
+| DELETE | `/api/student/applications/:id` | Cancel pending application |
+| PUT | `/api/student/applications/:id/confirm-payment` | Confirm on-spot payment received |
+| GET | `/api/student/payments` | Payment history |
+
+### Owner (Catering Business)
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/owner/profile` | Get catering profile |
+| PUT | `/api/owner/profile` | Update profile |
+| POST | `/api/owner/jobs` | Create job listing |
+| GET | `/api/owner/jobs` | List own jobs |
+| GET | `/api/owner/jobs/:id` | Job details + applicants |
+| PUT | `/api/owner/jobs/:id` | Update job |
+| DELETE | `/api/owner/jobs/:id` | Cancel job (notifies applicants) |
+| GET | `/api/owner/jobs/:id/applications` | List applicants |
+| PUT | `/api/owner/applications/:id/accept` | Accept applicant |
+| PUT | `/api/owner/applications/:id/reject` | Reject applicant |
+| PUT | `/api/owner/applications/:id/attendance` | Mark PRESENT / ABSENT |
+| PUT | `/api/owner/jobs/:id/complete` | Mark shift completed |
+| PUT | `/api/owner/applications/:id/payment` | Mark payment as PAID |
+| GET | `/api/owner/payments` | Payout records |
+
+### Reports & Disputes
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/reports` | File complaint (types: payment, behavior, fake job, wrong location) |
+| GET | `/api/reports/my-reports` | View own reports |
+| DELETE | `/api/reports/:id` | Withdraw complaint (student only) |
+
+### Complaint Chat
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/chat/:reportId/messages` | Fetch chat thread |
+| POST | `/api/chat/:reportId/messages` | Send message (max 2000 chars) |
+
+### Admin
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/admin/dashboard` | Platform metrics |
+| GET | `/api/admin/users` | All users |
+| PUT | `/api/admin/owners/:id/verify` | Grant/revoke verified badge |
+| PUT | `/api/admin/users/:id/suspend` | Suspend/reactivate user |
+| GET | `/api/admin/jobs` | All jobs for moderation |
+| DELETE | `/api/admin/jobs/:id` | Remove job |
+| GET | `/api/admin/reports` | All disputes |
+| PUT | `/api/admin/reports/:id/resolve` | Resolve dispute with remarks |
+
+### Notifications
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/notifications` | List notifications |
+| GET | `/api/notifications/unread-count` | Unread badge count |
+| PUT | `/api/notifications/:id/read` | Mark one as read |
+| PUT | `/api/notifications/read-all` | Mark all as read |
+
+### File Upload
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/upload/image` | Upload image (field: `image`, max 5 MB, types: jpg/png/gif/webp) |
+
+---
+
+## Database Schema
+
+9 tables with full referential integrity:
+
 ```
+users
+ ├── student_profiles        (1:1 via user_id)
+ ├── owner_profiles          (1:1 via user_id)
+ ├── notifications           (1:N via recipient_id)
+ └── audit_logs              (N via user_id)
+
+catering_jobs
+ ├── owner_profiles          (N:1 via owner_id)
+ └── job_applications        (1:N via job_id)
+      ├── student_profiles   (N:1 via student_id)
+      └── payment_records    (1:1 via application_id)
+
+reports
+ ├── users (reporter)        (N:1 via reporter_id)
+ ├── users (target)          (N:1 via target_user_id)
+ ├── catering_jobs           (N:1 via job_id, nullable)
+ └── complaint_messages      (1:N via report_id)
+```
+
+Key columns: `status` fields use string enums (e.g., `OPEN`, `APPLIED`, `ACCEPTED`, `PAID`, `CONFIRMED`, `PENDING`, `RESOLVED`).
+
+---
+
+## Frontend Architecture
+
+The app is a single `index.html` page with view-based routing handled in JavaScript:
+
+- **Landing page** — Hero, stats, featured jobs, how-it-works, safety, FAQ, footer
+- **Browse Jobs** — Filterable job cards with area, type, date, and payment filters
+- **Auth views** — Login, register (with email OTP verification), forgot password
+- **Student Dashboard** — Stats cards, tabbed views (applied / accepted / completed), payment history
+- **Owner Dashboard** — Job management, applicant lists with accept/reject/attendance/payment controls
+- **Admin Dashboard** — Platform metrics, user table, job moderation, dispute resolution
+- **Modals** — Job details, apply, applicants manager, payment confirmation, dispute form, resolve dispute
+- **Chat** — Complaint messaging between disputing parties
+- **Dark mode** — Toggle via `data-theme="dark"` on `<html>`
+- **Responsive** — Mobile-first with breakpoints at 576px, 768px, 992px, 1200px
+
+---
+
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `DB_HOST` | Yes | `localhost` | MySQL host |
+| `DB_PORT` | Yes | `3306` | MySQL port |
+| `DB_USER` | Yes | `root` | MySQL username |
+| `DB_PASSWORD` | Yes | `""` | MySQL password |
+| `DB_NAME` | Yes | `parttimejob_db` | Database name (auto-created) |
+| `JWT_SECRET` | Yes | `development-secret-change-me` | HMAC signing key |
+| `PORT` | No | `8080` | Server listen port |
+| `RUN_SEED` | No | `true` | Set `false` to skip seed data |
+| `SMTP_HOST` | For OTP | — | SMTP server hostname |
+| `SMTP_PORT` | For OTP | `587` | SMTP port |
+| `SMTP_USER` | For OTP | — | SMTP username |
+| `SMTP_PASSWORD` | For OTP | — | SMTP password |
+| `SMTP_FROM` | For OTP | — | Sender email address |
+| `SMTP_SECURE` | No | `false` | Set `true` for port 465 |
+
+---
+
+## License
+
+Private — All rights reserved.

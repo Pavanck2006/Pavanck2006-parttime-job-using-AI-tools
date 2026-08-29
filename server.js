@@ -831,7 +831,7 @@ app.use((e, req, res, next) => { console.error(e); fail(res, e.status || 500, e.
 // ─── START ───────────────────────────────────────────────────────────────────
 
 if (require.main === module) {
-  initializeDatabase().then(() => app.listen(PORT, () => console.log(`PartTime Job Platform listening on http://localhost:${PORT}`)))
+  initializeDatabase().then(() => app.listen(PORT, '0.0.0.0', () => console.log(`PartTime Job Platform listening on http://0.0.0.0:${PORT}`)))
     .catch(e => { console.error('Database initialization failed:', e.message); process.exitCode = 1; });
 }
 
