@@ -270,7 +270,7 @@ a:hover { color: var(--color-action-hover); }
 }
 
 .brand-badge {
-  background: var(--color-primary);
+  background: linear-gradient(135deg, var(--color-action) 0%, #ea580c 100%);
   color: white !important;
   padding: 8px 16px;
   border-radius: var(--radius-md);
@@ -279,6 +279,36 @@ a:hover { color: var(--color-action-hover); }
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  box-shadow: 0 2px 8px rgba(249,115,22,0.25);
+}
+
+.brand-badge i {
+  font-size: 1rem;
+}
+
+/* Dark mode brand logo stays vibrant */
+:root[data-theme="dark"] .brand-badge {
+  background: linear-gradient(135deg, var(--color-action) 0%, #ea580c 100%);
+  box-shadow: 0 2px 12px rgba(249,115,22,0.35);
+}
+
+.brand-text {
+  font-weight: var(--font-weight-extrabold);
+  font-size: 1.35rem;
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+}
+
+.brand-text span {
+  color: var(--color-action);
+}
+
+:root[data-theme="dark"] .brand-text {
+  color: #F8FAFC;
+}
+
+:root[data-theme="dark"] .brand-text span {
+  color: var(--color-action);
 }
 
 .navbar-custom .nav-link {
