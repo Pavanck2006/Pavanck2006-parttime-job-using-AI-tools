@@ -193,7 +193,7 @@
     <div class="container">
       <a class="navbar-brand d-flex align-items-center gap-2" href="javascript:void(0)" onclick="App.openRoleDashboard()" title="Open dashboard">
         <span class="brand-badge"><i class="bi bi-briefcase-fill"></i> PartTime</span>
-        <span class="fw-bold fs-4 text-dark">Job</span>
+        <span class="fw-bold fs-4" style="color: var(--color-primary)">Job</span>
       </a>
 
       <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
@@ -206,16 +206,13 @@
             <a class="nav-link nav-link-custom active" data-view="home" href="javascript:void(0)" onclick="App.navigate('home')">Home</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link nav-link-custom" data-view="jobs" href="javascript:void(0)" onclick="App.navigate('jobs')">Browse Jobs</a>
+            <a class="nav-link nav-link-custom" data-view="jobs" href="javascript:void(0)" onclick="App.navigate('jobs')">Find Jobs</a>
           </li>
-          <li class="nav-item">
+          <li class="nav-item d-none d-lg-inline">
             <a class="nav-link" id="navHowItWorks" href="javascript:void(0)" onclick="App.goToSection('how-it-works')">How It Works</a>
           </li>
-          <li class="nav-item">
-            <a class="nav-link" id="navSafety" href="javascript:void(0)" onclick="App.goToSection('safety-section')">Safety &amp; Privacy</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" id="navFaq" href="javascript:void(0)" onclick="App.goToSection('faq-section')">FAQ</a>
+          <li class="nav-item d-none d-lg-inline">
+            <a class="nav-link" id="navSafety" href="javascript:void(0)" onclick="App.goToSection('safety-section')">Safety</a>
           </li>
         </ul>
 
@@ -244,10 +241,10 @@
           <!-- Notification Bell -->
           <div class="dropdown">
             <button class="btn btn-light btn-sm position-relative rounded-circle p-2 border" id="notifDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false">
-              <i class="bi bi-bell-fill fs-6 text-dark"></i>
+              <i class="bi bi-bell-fill fs-6" style="color: var(--color-text)"></i>
               <span id="notifBadge" class="notif-badge d-none">0</span>
             </button>
-            <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-0" style="width: 320px; max-height: 420px; overflow-y: auto;">
+            <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-0" style="width: 320px; max-height: 420px; overflow-y: auto; right: 0; left: auto; position: absolute;">
               <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light">
                 <span class="fw-bold">Notifications</span>
                 <button class="btn btn-link btn-sm p-0 text-decoration-none" id="markAllNotifsReadBtn">Mark all read</button>
@@ -370,19 +367,19 @@
       <div class="container">
         <div class="row g-3 text-center">
           <div class="col-6 col-md-3">
-            <div class="fs-2 fw-bold text-primary" style="font-family: var(--font-heading);">₹750+</div>
+            <div class="fs-2 fw-bold" style="color: var(--color-action); font-family: var(--font-heading);">₹750+</div>
             <div class="text-muted small fw-semibold">Avg. Shift Earnings</div>
           </div>
           <div class="col-6 col-md-3">
-            <div class="fs-2 fw-bold text-success" style="font-family: var(--font-heading);">100%</div>
+            <div class="fs-2 fw-bold" style="color: var(--color-success); font-family: var(--font-heading);">100%</div>
             <div class="text-muted small fw-semibold">On-Spot Payment</div>
           </div>
           <div class="col-6 col-md-3">
-            <div class="fs-2 fw-bold text-dark" style="font-family: var(--font-heading);">50+</div>
+            <div class="fs-2 fw-bold" style="color: var(--color-text); font-family: var(--font-heading);">50+</div>
             <div class="text-muted small fw-semibold">Verified Caterers</div>
           </div>
           <div class="col-6 col-md-3">
-            <div class="fs-2 fw-bold text-primary" style="font-family: var(--font-heading);">0%</div>
+            <div class="fs-2 fw-bold" style="color: var(--color-action); font-family: var(--font-heading);">0%</div>
             <div class="text-muted small fw-semibold">Platform Fee for Students</div>
           </div>
         </div>
@@ -678,9 +675,8 @@
   <!-- VIEW 3: STUDENT DASHBOARD -->
   <!-- ========================================================================= -->
   <div id="view-student-dashboard" class="view-section d-none py-5">
-    <div class="container">
-      <!-- Welcome Header -->
-      <div class="card text-white p-4 mb-4 border-0" style="background: var(--grad-primary); border-radius: var(--radius-lg);">
+    <div class="container">      <!-- Welcome Header -->
+      <div class="dashboard-header">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
           <div>
             <span class="badge bg-white text-primary mb-2 fw-bold" style="font-size: 0.72rem;">Student Portal</span>
@@ -1000,7 +996,7 @@
   <div id="view-owner-dashboard" class="view-section d-none py-5">
     <div class="container">
       <!-- Welcome Header -->
-      <div class="card p-4 mb-4 border-0" style="background: var(--grad-dark); color: white; border-radius: var(--radius-lg);">
+      <div class="dashboard-header-dark">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
           <div>
             <span class="badge mb-2 fw-bold" style="background: rgba(255,255,255,0.15); color: white; font-size: 0.72rem;">Owner Dashboard</span>
@@ -1401,7 +1397,7 @@
   <!-- ========================================================================= -->
   <div id="view-admin-dashboard" class="view-section d-none py-5">
     <div class="container">
-      <div class="card bg-dark text-white p-4 mb-4 border-0 shadow-sm rounded-4">
+      <div class="dashboard-header-dark">
         <div class="d-flex justify-content-between align-items-center">
           <div>
             <span class="badge bg-danger mb-2">Platform Administration</span>
@@ -1466,7 +1462,7 @@
         <div class="col-6 col-md-4 col-lg-3">
           <div class="metric-card">
             <div class="metric-label">Platform Payout</div>
-            <div class="metric-val text-dark" id="adStatPayout">₹0</div>
+            <div class="metric-val" style="color: var(--color-primary)" id="adStatPayout">₹0</div>
           </div>
         </div>
       </div>
@@ -1578,46 +1574,6 @@
       </div>
     </div>
   </div>
-
-  <!-- ========================================================================= -->
-  <!-- FOOTER -->
-  <!-- ========================================================================= -->
-  <footer class="footer-custom py-5">
-    <div class="container">
-      <div class="row g-4 mb-4">
-        <div class="col-lg-5">
-          <div class="d-flex align-items-center gap-2 mb-3">
-            <span class="brand-badge"><i class="bi bi-briefcase-fill"></i> PartTime</span>
-            <span class="fw-bold fs-4 text-white">Job</span>
-          </div>
-          <p class="small text-muted mb-3">
-            <strong>"Find Work. Earn More. Work Safely."</strong><br>
-            The dedicated portal connecting students with trusted catering and event organizers across Bangalore.
-          </p>
-          <div class="small text-muted">
-            &copy; 2026 PartTime Job Platform. All rights reserved.
-          </div>
-        </div>
-        <div class="col-6 col-lg-3">
-          <h6 class="fw-bold text-white mb-3">Quick Links</h6>
-          <ul class="list-unstyled small">
-            <li class="mb-2"><a href="javascript:void(0)" onclick="App.navigate('home')">Home</a></li>
-            <li class="mb-2"><a href="javascript:void(0)" onclick="App.navigate('jobs')">Browse Catering Shifts</a></li>
-            <li class="mb-2"><a href="javascript:void(0)" onclick="App.goToSection('how-it-works')">How It Works</a></li>
-            <li class="mb-2"><a href="javascript:void(0)" onclick="App.goToSection('safety-section')">Safety &amp; Verification</a></li>
-          </ul>
-        </div>
-        <div class="col-6 col-lg-4">
-          <h6 class="fw-bold text-white mb-3">Roles</h6>
-          <ul class="list-unstyled small">
-            <li class="mb-2"><a href="javascript:void(0)" onclick="App.openRegisterModal('ROLE_STUDENT')">Register as Student</a></li>
-            <li class="mb-2"><a href="javascript:void(0)" onclick="App.openRegisterModal('ROLE_OWNER')">Register as Catering Owner</a></li>
-            <li class="mb-2"><a href="javascript:void(0)" onclick="App.openLoginModal()">Administrator Login</a></li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  </footer>
 
   <!-- ========================================================================= -->
   <!-- MODALS -->
@@ -2006,7 +1962,76 @@
   <div class="toast-container toast-container-custom" id="toastContainer"></div>
 
   <!-- Bootstrap 5 Bundle JS -->
+
+  <!-- Mobile Bottom Navigation -->
+  <nav class="mobile-bottom-nav" id="mobileBottomNav">
+    <a class="text-center text-decoration-none" href="javascript:void(0)" onclick="App.openRoleDashboard()" style="color: var(--text-muted);">
+      <i class="bi bi-house-door fs-5 d-block"></i>
+      <small>Home</small>
+    </a>
+    <a class="text-center text-decoration-none" href="javascript:void(0)" onclick="App.navigate('jobs')" style="color: var(--text-muted);">
+      <i class="bi bi-search fs-5 d-block"></i>
+      <small>Find Jobs</small>
+    </a>
+    <a class="text-center text-decoration-none position-relative" href="javascript:void(0)" onclick="App.openSettingsSection('profile')" style="color: var(--text-muted);">
+      <i class="bi bi-person-circle fs-5 d-block"></i>
+      <small>Profile</small>
+    </a>
+  </nav>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <!-- Main Footer -->
+      <div class="row g-4 g-lg-5 py-5">
+        <!-- Column 1: Brand -->
+        <div class="col-lg-5">
+          <div class="d-flex align-items-center gap-2 mb-3">
+            <span class="brand-badge"><i class="bi bi-briefcase-fill"></i> PartTime</span>
+            <span class="fw-bold fs-4 text-white">Job</span>
+          </div>
+          <p class="footer-desc mb-0">
+            Find flexible part-time jobs and connect with the right opportunities.
+          </p>
+        </div>
+
+        <!-- Column 2: Quick Links -->
+        <div class="col-lg-3 col-md-4">
+          <h6 class="footer-heading">Quick Links</h6>
+          <ul class="footer-links">
+            <li><a href="javascript:void(0)" onclick="App.navigate('home')">Home</a></li>
+            <li><a href="javascript:void(0)" onclick="App.navigate('jobs')">Find Jobs</a></li>
+            <li><a href="javascript:void(0)" onclick="App.goToSection('how-it-works')">About Us</a></li>
+            <li><a href="javascript:void(0)" onclick="App.goToSection('faq-section')">Contact Us</a></li>
+          </ul>
+        </div>
+
+        <!-- Column 3: Support -->
+        <div class="col-lg-3 col-md-4">
+          <h6 class="footer-heading">Support</h6>
+          <ul class="footer-links">
+            <li><a href="javascript:void(0)" onclick="App.goToSection('how-it-works')">Help &amp; Support</a></li>
+            <li><a href="javascript:void(0)" onclick="App.goToSection('safety-section')">Privacy Policy</a></li>
+            <li><a href="javascript:void(0)" onclick="App.goToSection('faq-section')">Terms &amp; Conditions</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Founders Section -->
+      <div class="footer-founders">
+        <div class="footer-founders-label">Built By</div>
+        <div class="footer-founders-names">Pavan C K &amp; Nirbhay Patil</div>
+      </div>
+
+      <!-- Copyright -->
+      <hr class="footer-divider">
+      <div class="footer-copyright">
+        <span>&copy; 2026 PartTime Job Platform.</span>
+        <span>All rights reserved.</span>
+      </div>
+    </div>
+  </footer>
 
   <!-- Application JS Modules -->
   <script src="/js/api.js"></script>

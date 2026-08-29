@@ -197,7 +197,7 @@ const Admin = {
           <td>
             ${r.status === 'RESOLVED' ? '<span class="badge bg-success">RESOLVED</span>' :
               r.status === 'DISMISSED' ? '<span class="badge bg-secondary">DISMISSED</span>' :
-              '<span class="badge bg-warning text-dark">PENDING</span>'}
+              '<span class="badge bg-warning">PENDING</span>'}
           </td>
           <td><small class="text-muted">${r.adminRemarks ? App.escapeHtml(r.adminRemarks) : 'No remarks yet'}</small></td>
           <td>
