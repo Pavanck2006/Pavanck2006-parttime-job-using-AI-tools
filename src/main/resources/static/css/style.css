@@ -962,7 +962,7 @@ a:hover { color: var(--color-action-hover); }
   left: auto !important;
 }
 
-.notif-dropdown-menu { width: 320px; }
+.notif-dropdown-menu { width: 300px; }
 
 /* Old 576px notification media query — now in comprehensive responsive section */
 
@@ -1628,15 +1628,16 @@ body { top: 0 !important; }
   #userRoleBadge { font-size: 0.65rem; }
   .theme-toggle { padding: 5px 8px !important; }
 
-  /* Notification dropdown mobile - center it within viewport */
+  /* Notification dropdown mobile - center and smaller */
   .notif-dropdown-menu {
     position: fixed !important;
     top: 60px !important;
     left: 50% !important;
     right: auto !important;
     transform: translateX(-50%) !important;
-    width: calc(100vw - 24px) !important;
-    max-width: 360px !important;
+    width: calc(100vw - 40px) !important;
+    max-width: 300px !important;
+    font-size: 0.82rem;
   }
   .toast-container-custom { right: 12px; top: 64px; }
   .toast-container-custom .toast { max-width: calc(100vw - 24px); }
