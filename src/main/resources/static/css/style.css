@@ -1628,16 +1628,18 @@ body { top: 0 !important; }
   #userRoleBadge { font-size: 0.65rem; }
   .theme-toggle { padding: 5px 8px !important; }
 
-  /* Notification dropdown mobile - center and smaller */
+  /* Notification dropdown mobile - centered on screen */
   .notif-dropdown-menu {
     position: fixed !important;
-    top: 60px !important;
+    top: 50% !important;
     left: 50% !important;
     right: auto !important;
-    transform: translateX(-50%) !important;
+    transform: translate(-50%, -50%) !important;
     width: calc(100vw - 40px) !important;
-    max-width: 300px !important;
-    font-size: 0.82rem;
+    max-width: 320px !important;
+    border-radius: 14px !important;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3) !important;
+    max-height: 70vh !important;
   }
   .toast-container-custom { right: 12px; top: 64px; }
   .toast-container-custom .toast { max-width: calc(100vw - 24px); }
