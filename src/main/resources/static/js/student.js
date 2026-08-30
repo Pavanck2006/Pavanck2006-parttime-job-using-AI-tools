@@ -3,6 +3,8 @@
  */
 
 const Student = {
+  _profileName: '',
+
   async loadDashboard() {
     try {
       await this.loadStats();
@@ -10,9 +12,9 @@ const Student = {
       await this.loadApplications();
       await this.loadAcceptedJobs();
       await this.loadCompletedJobs();
+      await this.loadProfile();
       await this.loadPayments();
       await this.loadReports();
-      await this.loadProfile();
     } catch (err) {
       console.error('Error loading student dashboard:', err);
     }
@@ -36,6 +38,7 @@ const Student = {
       this.exitProfileEditMode();
       const profile = await API.student.getProfile();
       document.getElementById('stWelcomeName').innerText = profile.fullName;
+      this._profileName = profile.fullName || '';
       document.getElementById('stCollegeBadge').innerText = profile.collegeName || 'Student';
       document.getElementById('stAreaBadge').innerText = profile.preferredArea ? '📍 ' + profile.preferredArea : '📍 Bangalore';
       document.getElementById('stRatingBadge').innerText = '★ ' + (profile.rating || 5.0).toFixed(1);
@@ -364,7 +367,7 @@ const Student = {
             <small class="text-muted">${App.escapeHtml(pay.workArea || '')}</small>
           </td>
           <td>
-            <div class="fw-semibold">${App.escapeHtml(pay.ownerCateringName)}</div>
+            <div class="fw-semibold">${App.escapeHtml(this._profileName)}</div>
             <small class="text-muted">${App.escapeHtml(pay.workArea || '')}</small>
           </td>
           <td class="fw-bold text-success">₹${pay.amount}</td>

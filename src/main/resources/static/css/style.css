@@ -741,6 +741,15 @@ a:hover { color: var(--color-action-hover); }
 :root[data-theme="dark"] .badge.bg-warning { background-color: #92400e !important; color: #fde68a !important; }
 :root[data-theme="dark"] .custom-table { background: #111827 !important; border-color: #263244 !important; }
 :root[data-theme="dark"] .table-responsive { background: transparent !important; }
+:root[data-theme="dark"] .tab-content { color: #F8FAFC; }
+:root[data-theme="dark"] .tab-content .card { background: #111827; color: #F8FAFC; border-color: #263244; }
+:root[data-theme="dark"] .tab-content .card .text-muted { color: #94A3B8 !important; }
+:root[data-theme="dark"] .tab-content .card h5, :root[data-theme="dark"] .tab-content .card h6 { color: #F8FAFC; }
+:root[data-theme="dark"] .fw-bold { color: #F8FAFC; }
+:root[data-theme="dark"] .fw-semibold { color: #CBD5E1; }
+:root[data-theme="dark"] #stPaymentsList td, :root[data-theme="dark"] #owPaymentsList td { color: #F8FAFC; }
+:root[data-theme="dark"] #stPaymentsList .fw-bold, :root[data-theme="dark"] #owPaymentsList .fw-bold { color: #F8FAFC; }
+:root[data-theme="dark"] #stPaymentsList .text-muted, :root[data-theme="dark"] #owPaymentsList .text-muted { color: #94A3B8 !important; }
 
 /* ── NAV PILLS ─────────────────────────────────────────────────────────────── */
 .nav-pills-custom { gap: 6px; flex-wrap: wrap; }
