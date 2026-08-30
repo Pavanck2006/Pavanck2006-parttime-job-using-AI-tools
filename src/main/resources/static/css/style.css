@@ -751,6 +751,70 @@ a:hover { color: var(--color-action-hover); }
 :root[data-theme="dark"] #stPaymentsList .fw-bold, :root[data-theme="dark"] #owPaymentsList .fw-bold { color: #F8FAFC; }
 :root[data-theme="dark"] #stPaymentsList .text-muted, :root[data-theme="dark"] #owPaymentsList .text-muted { color: #94A3B8 !important; }
 
+/* Payment box full dark mode override */
+:root[data-theme="dark"] #st-tab-payments,
+:root[data-theme="dark"] #ow-tab-payments { background: transparent; }
+
+:root[data-theme="dark"] #st-tab-payments .custom-table,
+:root[data-theme="dark"] #ow-tab-payments .custom-table {
+  background: #111827 !important;
+  border: 1px solid #263244 !important;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+:root[data-theme="dark"] #st-tab-payments .table,
+:root[data-theme="dark"] #ow-tab-payments .table {
+  color: #F8FAFC !important;
+  background: #111827 !important;
+}
+
+:root[data-theme="dark"] #st-tab-payments .table thead th,
+:root[data-theme="dark"] #ow-tab-payments .table thead th {
+  background: #0d1525 !important;
+  color: #94A3B8 !important;
+  border-bottom-color: #263244 !important;
+}
+
+:root[data-theme="dark"] #st-tab-payments .table tbody td,
+:root[data-theme="dark"] #ow-tab-payments .table tbody td {
+  color: #F8FAFC !important;
+  border-bottom-color: #1e293b !important;
+  background: #111827 !important;
+}
+
+:root[data-theme="dark"] #st-tab-payments .table tbody tr:hover,
+:root[data-theme="dark"] #ow-tab-payments .table tbody tr:hover {
+  background: rgba(249,115,22,0.06) !important;
+}
+
+:root[data-theme="dark"] #st-tab-payments .fw-bold,
+:root[data-theme="dark"] #ow-tab-payments .fw-bold {
+  color: #F8FAFC !important;
+}
+
+:root[data-theme="dark"] #st-tab-payments .fw-semibold,
+:root[data-theme="dark"] #ow-tab-payments .fw-semibold {
+  color: #CBD5E1 !important;
+}
+
+:root[data-theme="dark"] #st-tab-payments .text-success,
+:root[data-theme="dark"] #ow-tab-payments .text-success {
+  color: #4ade80 !important;
+}
+
+:root[data-theme="dark"] #st-tab-payments .text-muted,
+:root[data-theme="dark"] #ow-tab-payments .text-muted {
+  color: #94A3B8 !important;
+}
+
+:root[data-theme="dark"] #owPaymentSummary .card {
+  background: #111827 !important;
+  border-color: #263244 !important;
+}
+:root[data-theme="dark"] #owPaymentSummary .text-muted { color: #94A3B8 !important; }
+:root[data-theme="dark"] #owPaymentSummary .fw-bold { color: #F8FAFC !important; }
+
 /* ── NAV PILLS ─────────────────────────────────────────────────────────────── */
 .nav-pills-custom { gap: 6px; flex-wrap: wrap; }
 
