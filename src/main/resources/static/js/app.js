@@ -41,6 +41,22 @@ const App = {
     this.applyTheme(nextTheme);
   },
 
+  toggleNotifPanel() {
+    const panel = document.getElementById('notifPanel');
+    const overlay = document.getElementById('notifOverlay');
+    if (!panel || !overlay) return;
+    const isOpen = !panel.classList.contains('d-none');
+    if (isOpen) {
+      panel.classList.add('d-none');
+      overlay.classList.add('d-none');
+      document.body.style.overflow = '';
+    } else {
+      panel.classList.remove('d-none');
+      overlay.classList.remove('d-none');
+      document.body.style.overflow = 'hidden';
+    }
+  },
+
   openSettingsSection(section) {
     const user = API.getCurrentUser();
     if (!user) return;

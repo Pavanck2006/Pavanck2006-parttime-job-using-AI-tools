@@ -239,19 +239,21 @@
             <span class="visually-hidden">Switch theme</span>
           </button>
           <!-- Notification Bell -->
-          <div class="dropdown">
-            <button class="btn btn-light btn-sm position-relative rounded-circle p-2 border" id="notifDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false">
-              <i class="bi bi-bell-fill fs-6" style="color: var(--color-text)"></i>
-              <span id="notifBadge" class="notif-badge d-none">0</span>
-            </button>
-            <div class="dropdown-menu dropdown-menu-end shadow-lg border-0 p-0 notif-dropdown-menu" style="max-height: 420px; overflow-y: auto; right: 0; left: auto; position: absolute;">
-              <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light">
-                <span class="fw-bold">Notifications</span>
-                <button class="btn btn-link btn-sm p-0 text-decoration-none" id="markAllNotifsReadBtn">Mark all read</button>
-              </div>
-              <div id="notifList">
-                <div class="p-3 text-center text-muted">No new notifications</div>
-              </div>
+          <button class="btn btn-light btn-sm position-relative rounded-circle p-2 border" id="notifDropdownBtn" onclick="App.toggleNotifPanel()">
+            <i class="bi bi-bell-fill fs-6" style="color: var(--color-text)"></i>
+            <span id="notifBadge" class="notif-badge d-none">0</span>
+          </button>
+
+          <!-- Notification Panel Overlay -->
+          <div class="notif-overlay d-none" id="notifOverlay" onclick="App.toggleNotifPanel()"></div>
+          <div class="notif-panel d-none" id="notifPanel">
+            <div class="notif-panel-header">
+              <button class="notif-panel-back" onclick="App.toggleNotifPanel()"><i class="bi bi-arrow-left"></i></button>
+              <span class="fw-bold">Notifications</span>
+              <button class="btn btn-link btn-sm p-0 text-decoration-none ms-auto" id="markAllNotifsReadBtn">Mark all read</button>
+            </div>
+            <div class="notif-panel-body" id="notifList">
+              <div class="p-3 text-center text-muted">No new notifications</div>
             </div>
           </div>
 
