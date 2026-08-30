@@ -193,7 +193,7 @@ const Student = {
               <div class="fw-bold">${App.escapeHtml(app.jobTitle || 'Catering Job')}</div>
               <small class="text-muted">${App.escapeHtml(app.cateringName || '')} ${app.ownerVerified ? '<i class="bi bi-patch-check-fill text-success"></i>' : ''}</small>
             </td>
-            <td><span class="badge bg-light text-dark border">${app.workTypeDisplayName || app.workType}</span></td>
+            <td><span class="badge bg-primary-subtle text-primary border">${app.workTypeDisplayName || app.workType}</span></td>
             <td>📍 ${App.escapeHtml(app.workArea || '')}</td>
             <td>
               <div>${App.formatDate(app.jobDate)}</div>
@@ -359,17 +359,23 @@ const Student = {
 
       container.innerHTML = payments.map(pay => `
         <tr>
-          <td class="fw-bold">${App.escapeHtml(pay.jobTitle)}</td>
-          <td>${App.escapeHtml(pay.ownerCateringName)}</td>
+          <td>
+            <div class="fw-bold">${App.escapeHtml(pay.jobTitle)}</div>
+            <small class="text-muted">${App.escapeHtml(pay.workArea || '')}</small>
+          </td>
+          <td>
+            <div class="fw-semibold">${App.escapeHtml(pay.ownerCateringName)}</div>
+            <small class="text-muted">${App.escapeHtml(pay.workArea || '')}</small>
+          </td>
           <td class="fw-bold text-success">₹${pay.amount}</td>
-          <td><span class="badge bg-light text-dark border">${pay.paymentTypeDisplayName || 'On-Spot'}</span></td>
+          <td><span class="badge bg-primary-subtle text-primary border">${pay.paymentTypeDisplayName || 'On-Spot'}</span></td>
           <td>
             ${pay.paymentStatus === 'CONFIRMED' ? '<span class="badge bg-success">Confirmed</span>' :
-              pay.paymentStatus === 'PAID' ? '<span class="badge bg-info text-dark">Marked Paid</span>' :
+              pay.paymentStatus === 'PAID' ? '<span class="badge bg-info">Marked Paid</span>' :
               pay.paymentStatus === 'DISPUTED' ? '<span class="badge bg-danger">Disputed</span>' :
-              '<span class="badge bg-warning text-dark">Pending</span>'}
+              '<span class="badge bg-warning">Pending</span>'}
           </td>
-          <td>${App.formatDate(pay.confirmedPaidAt || pay.markedPaidAt || pay.createdAt)}</td>
+          <td><small class="text-muted">${App.formatDate(pay.confirmedPaidAt || pay.markedPaidAt || pay.createdAt)}</small></td>
         </tr>
       `).join('');
     } catch (err) {

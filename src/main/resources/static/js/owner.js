@@ -190,8 +190,7 @@ async updateProfile(e) {
                 </div>
 
                 <div class="col-lg-3 mb-2 mb-lg-0 text-lg-center">
-                  <div class="fw-bold fs-5 text-success">₹${job.paymentAmount}</div>
-                  <span class="badge ${job.onSpotPayment ? 'bg-success-subtle text-success' : 'bg-light text-dark'} border">${job.paymentTypeDisplayName || 'On-Spot'}</span>
+                  <div class="fw-bold fs-5 text-success">₹${job.paymentAmount}</div>                    <span class="badge ${job.onSpotPayment ? 'bg-success-subtle text-success' : 'bg-primary-subtle text-primary'} border">${job.paymentTypeDisplayName || 'On-Spot'}</span>
                   <div class="small text-muted mt-1">Hired: <strong>${job.workersSelected}</strong> / ${job.workersRequired} workers</div>
                 </div>
 
@@ -364,8 +363,8 @@ async updateProfile(e) {
                   </td>
                   <td>
                     ${app.paymentStatus === 'CONFIRMED' ? '<span class="badge bg-success"><i class="bi bi-check-all me-1"></i>Confirmed</span>' :
-                      app.paymentStatus === 'PAID' ? '<span class="badge bg-info text-dark">Marked Paid</span>' :
-                      app.paymentStatus === 'DISPUTED' ? '<span class="badge bg-danger">Disputed</span>' :
+                      app.paymentStatus === 'PAID' ? '<span class="badge bg-info"><i class="bi bi-cash me-1"></i>Marked Paid</span>' :
+                      app.paymentStatus === 'DISPUTED' ? '<span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>Disputed</span>' :
                       '<span class="badge bg-warning text-dark">Pending</span>'}
                   </td>
                   <td>
@@ -521,8 +520,8 @@ async updateProfile(e) {
     }
 
     container.innerHTML = filtered.map(pay => {
-      let statusBadge = '<span class="badge bg-warning text-dark">Pending</span>';
-      if (pay.paymentStatus === 'PAID') statusBadge = '<span class="badge bg-info text-dark">Paid</span>';
+      let statusBadge = '<span class="badge bg-warning">Pending</span>';
+      if (pay.paymentStatus === 'PAID') statusBadge = '<span class="badge bg-info">Paid</span>';
       else if (pay.paymentStatus === 'CONFIRMED') statusBadge = '<span class="badge bg-success">Confirmed</span>';
       else if (pay.paymentStatus === 'DISPUTED') statusBadge = '<span class="badge bg-danger">Disputed</span>';
 
@@ -531,10 +530,12 @@ async updateProfile(e) {
           <div class="fw-bold">${App.escapeHtml(pay.jobTitle)}</div>
           <small class="text-muted">${App.escapeHtml(pay.workArea || '')}</small>
         </td>
-        <td>${App.escapeHtml(pay.studentName)}</td>
+        <td>
+          <div class="fw-semibold">${App.escapeHtml(pay.studentName)}</div>
+        </td>
         <td class="fw-bold text-success">₹${pay.amount}</td>
         <td>${statusBadge}</td>
-        <td>${App.formatDate(pay.markedPaidAt || pay.createdAt)}</td>
+        <td><small class="text-muted">${App.formatDate(pay.markedPaidAt || pay.createdAt)}</small></td>
       </tr>`;
     }).join('');
   },
