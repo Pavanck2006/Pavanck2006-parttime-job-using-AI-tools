@@ -1828,6 +1828,16 @@ body { top: 0 !important; }
   color: #fff !important;
 }
 
+
+/* Override dashboard-header white-on-white for verified/unverified badges */
+.dashboard-header .verified-badge,
+.dashboard-header-dark .verified-badge {
+  color: var(--color-secondary) !important;
+}
+.dashboard-header .unverified-badge,
+.dashboard-header-dark .unverified-badge {
+  color: var(--color-warning) !important;
+}
 /* ══════════════════════════════════════════════════════════════════════════════
    COMPREHENSIVE RESPONSIVE DESIGN
    Breakpoints: 480px → 768px → 1024px → 1200px
