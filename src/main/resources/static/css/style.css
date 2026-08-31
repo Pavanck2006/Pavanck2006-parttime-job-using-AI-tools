@@ -1801,6 +1801,22 @@ body { top: 0 !important; }
 /* Dark mode: inline SVGs should use currentColor */
 :root[data-theme="dark"] svg { color: currentColor; }
 
+
+/* ── VERIFIED/UNVERIFIED BADGE LIGHT MODE SAFETY ──────────────────────────── */
+/* Prevent Bootstrap 5.3 auto-dark-mode from overriding badge colors */
+:root:not([data-theme="dark"]) .verified-badge,
+.verified-badge {
+  background: var(--soft-teal);
+  color: var(--color-secondary) !important;
+  border-color: rgba(15,118,110,0.2) !important;
+}
+:root:not([data-theme="dark"]) .unverified-badge,
+.unverified-badge {
+  background: var(--soft-orange);
+  color: var(--color-warning) !important;
+  border-color: rgba(217,119,6,0.2) !important;
+}
+
 /* ── DASHBOARD HEADER TEXT (LIGHT MODE SAFETY) ──────────────────────────────── */
 /* Ensure names and text are always visible in the dark-gradient dashboard headers */
 .dashboard-header h2, .dashboard-header h4, .dashboard-header h3,
