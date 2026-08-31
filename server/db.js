@@ -29,6 +29,10 @@ async function initializeDatabase() {
   try { await pool.query('ALTER TABLE owner_profiles ADD COLUMN profile_photo_url TEXT'); } catch (e) { if (e.errno !== 1060) throw e; }
   // Migration: add apply_deadline to catering_jobs
   try { await pool.query('ALTER TABLE catering_jobs ADD COLUMN apply_deadline DATETIME NULL'); } catch (e) { if (e.errno !== 1060) throw e; }
+  // Migration: add latitude, longitude, location_address to catering_jobs
+  try { await pool.query('ALTER TABLE catering_jobs ADD COLUMN latitude DOUBLE NULL'); } catch (e) { if (e.errno !== 1060) throw e; }
+  try { await pool.query('ALTER TABLE catering_jobs ADD COLUMN longitude DOUBLE NULL'); } catch (e) { if (e.errno !== 1060) throw e; }
+  try { await pool.query('ALTER TABLE catering_jobs ADD COLUMN location_address TEXT'); } catch (e) { if (e.errno !== 1060) throw e; }
   // Migration: add job_deletion_requests table
   try {
     await pool.query(`CREATE TABLE IF NOT EXISTS job_deletion_requests (

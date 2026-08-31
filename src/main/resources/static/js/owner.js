@@ -12,6 +12,7 @@ const Owner = {
       await this.loadClosedJobs();
       await this.loadPayments();
       await this.loadComplaints();
+      this.initJobMap();
     } catch (err) {
       console.error('Error loading owner dashboard:', err);
     }
@@ -188,6 +189,7 @@ async updateProfile(e) {
                   </div>
                   ${job.locationPhotoUrl ? `<div class="mt-2"><img src="${App.escapeHtml(job.locationPhotoUrl)}" alt="Location" class="rounded" style="max-height: 80px; object-fit: cover;" onerror="this.style.display='none'"></div>` : ''}
                   <div class="small text-muted"><i class="bi bi-geo-alt me-1"></i>${App.escapeHtml(job.detailedLocation)}</div>
+                  ${job.latitude && job.longitude ? `<div class="small"><a href="https://www.google.com/maps?q=${job.latitude},${job.longitude}" target="_blank" class="text-decoration-none"><i class="bi bi-map me-1"></i>View on Map</a></div>` : ''}
                   ${job.applyDeadline ? `<div class="small ${new Date(job.applyDeadline) < new Date() ? 'text-danger fw-semibold' : 'text-warning'}"><i class="bi bi-clock me-1"></i>Apply by: ${App.formatDate(job.applyDeadline)} ${App.formatTime(job.applyDeadline)}${new Date(job.applyDeadline) < new Date() ? ' (Deadline passed)' : ''}</div>` : ''}
                 </div>
 
@@ -354,8 +356,17 @@ async updateProfile(e) {
         contactPhone: document.getElementById('jobContactPhone').value.trim(),
         contactEmail: document.getElementById('jobContactEmail').value.trim(),
         applyDeadline,
-        locationPhotoUrl
+        locationPhotoUrl,
+        latitude: document.getElementById('jobLatitude').value || null,
+        longitude: document.getElementById('jobLongitude').value || null,
+        locationAddress: document.getElementById('jobLocationAddress').value || null
       };
+
+      // Validate location is selected
+      if (!payload.latitude || !payload.longitude) {
+        App.showToast('Please select the job location on Google Maps.', 'error');
+        return;
+      }
 
       await API.owner.createJob(payload);
       App.showToast('Job posted successfully!', 'success');
@@ -364,6 +375,13 @@ async updateProfile(e) {
       document.getElementById('createJobForm').reset();
       document.getElementById('jobOnSpotCheckbox').checked = true;
       document.getElementById('jobPhotoPreview').classList.add('d-none');
+      document.getElementById('jobLatitude').value = '';
+      document.getElementById('jobLongitude').value = '';
+      document.getElementById('jobLocationAddress').value = '';
+      document.getElementById('jobLocationConfirm').classList.add('d-none');
+      document.getElementById('jobLocationStatus').innerHTML = '<i class="bi bi-info-circle me-1"></i>Search and click on the map to set the exact job location.';
+      document.getElementById('jobLocationSearch').value = '';
+      if (this._map) { this._marker && this._marker.setPosition(this._defaultCenter); this._map.setCenter(this._defaultCenter); }
 
       // Switch to Active Jobs tab
       const tabEl = document.querySelector('button[data-bs-target="#ow-tab-jobs"]');
@@ -694,5 +712,106 @@ async updateProfile(e) {
     document.getElementById('ownerProfileForm')?.classList.add('d-none');
     document.getElementById('owProfileView')?.classList.remove('d-none');
     document.getElementById('owProfEditBtn')?.classList.remove('d-none');
+  },
+
+  // ─── Google Maps Location Picker ──────────────────────────────────────────
+  _defaultCenter: {lat: 12.9716, lng: 77.5946},
+  _map: null,
+  _marker: null,
+  _autocomplete: null,
+  _mapsLoaded: false,
+
+  async initJobMap() {
+    if (this._mapsLoaded) return;
+    try {
+      const res = await fetch('/api/public/google-maps-key');
+      const json = await res.json();
+      const key = json.data?.apiKey;
+      if (!key) {
+        document.getElementById('jobLocationStatus').innerHTML = '<i class="bi bi-exclamation-triangle text-warning me-1"></i>Google Maps API key not configured. Contact admin.';
+        return;
+      }
+      // Load Google Maps script
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&callback=Owner._onMapsLoaded`;
+      script.async = true;
+      script.defer = true;
+      window.Owner = window.Owner || this;
+      document.head.appendChild(script);
+    } catch (e) {
+      console.error('Failed to load Google Maps:', e);
+    }
+  },
+
+  _onMapsLoaded() {
+    this._mapsLoaded = true;
+    const mapEl = document.getElementById('jobMap');
+    mapEl.style.display = 'block';
+    this._map = new google.maps.Map(mapEl, {
+      center: this._defaultCenter,
+      zoom: 13,
+      mapTypeControl: false,
+      streetViewControl: false
+    });
+    this._marker = new google.maps.Marker({
+      position: this._defaultCenter,
+      map: this._map,
+      draggable: true,
+      title: 'Drag to adjust location'
+    });
+    // Click on map to move marker
+    this._map.addListener('click', (e) => {
+      this._placeMarker(e.latLng);
+    });
+    // Marker drag end
+    this._marker.addListener('dragend', () => {
+      this._reverseGeocode(this._marker.getPosition());
+    });
+    // Autocomplete search
+    const searchInput = document.getElementById('jobLocationSearch');
+    this._autocomplete = new google.maps.places.Autocomplete(searchInput, {
+      fields: ['formatted_address', 'geometry', 'name']
+    });
+    this._autocomplete.addListener('place_changed', () => {
+      const place = this._autocomplete.getPlace();
+      if (place.geometry?.location) {
+        this._map.setCenter(place.geometry.location);
+        this._map.setZoom(16);
+        this._placeMarker(place.geometry.location, place.formatted_address);
+      }
+    });
+  },
+
+  _placeMarker(latLng, address) {
+    this._marker.setPosition(latLng);
+    this._map.panTo(latLng);
+    document.getElementById('jobLatitude').value = latLng.lat();
+    document.getElementById('jobLongitude').value = latLng.lng();
+    document.getElementById('jobLocationStatus').innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Getting address...';
+    if (address) {
+      this._setLocationDisplay(latLng, address);
+    } else {
+      this._reverseGeocode(latLng);
+    }
+  },
+
+  _reverseGeocode(latLng) {
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({location: latLng}, (results, status) => {
+      if (status === 'OK' && results[0]) {
+        this._setLocationDisplay(latLng, results[0].formatted_address);
+      } else {
+        this._setLocationDisplay(latLng, `${latLng.lat()}, ${latLng.lng()}`);
+      }
+    });
+  },
+
+  _setLocationDisplay(latLng, address) {
+    document.getElementById('jobLatitude').value = latLng.lat();
+    document.getElementById('jobLongitude').value = latLng.lng();
+    document.getElementById('jobLocationAddress').value = address;
+    document.getElementById('jobLocationDisplay').textContent = address;
+    document.getElementById('jobLocationConfirm').classList.remove('d-none');
+    document.getElementById('jobLocationStatus').innerHTML = '<i class="bi bi-check-circle text-success me-1"></i>Location selected successfully!';
   }
 };

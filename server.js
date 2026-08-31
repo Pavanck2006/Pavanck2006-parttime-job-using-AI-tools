@@ -180,6 +180,9 @@ function job(r, unlocked = false) {
     contactPhone: unlocked ? r.contact_phone : undefined,
     contactEmail: unlocked ? r.contact_email : undefined,
     locationPhotoUrl: r.location_photo_url || null,
+    latitude: r.latitude || null,
+    longitude: r.longitude || null,
+    locationAddress: r.location_address || null,
     applyDeadline: r.apply_deadline || null,
     status: r.status, cateringName: r.catering_name,
     ownerId: r.owner_user_id,
@@ -253,6 +256,11 @@ async function listJobs(req, res, next) {
     ok(res, r.map(x => job(x)), 'Jobs retrieved successfully');
   } catch (e) { next(e); }
 }
+
+app.get('/api/public/google-maps-key', (req, res) => {
+  const key = process.env.GOOGLE_MAPS_API_KEY || '';
+  ok(res, {apiKey: key});
+});
 
 app.get('/api/public/jobs', listJobs);
 app.get('/api/public/jobs/recommended', listJobs);
@@ -406,8 +414,15 @@ app.put('/api/owner/profile', auth, guard('ROLE_OWNER'), async (req, res, next) 
 app.post('/api/owner/jobs', auth, guard('ROLE_OWNER'), async (req, res, next) => {
   try {
     const b = req.body, id = await ownerId(req);
-    const [x] = await pool.query(`INSERT INTO catering_jobs (owner_id,title,description,work_type,work_area,detailed_location,job_date,start_time,end_time,payment_amount,payment_type,is_on_spot_payment,workers_required,required_skills,contact_phone,contact_email,location_photo_url,apply_deadline) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [id, b.title, b.description || null, b.workType, b.workArea, b.detailedLocation, b.jobDate, b.startTime, b.endTime, b.paymentAmount, b.paymentType, b.onSpotPayment !== false, b.workersRequired, b.requiredSkills || null, b.contactPhone, b.contactEmail || null, b.locationPhotoUrl || null, b.applyDeadline || null]);
+    // Validate location coordinates (required for new jobs)
+    if (!b.latitude || !b.longitude) {
+      return fail(res, 400, 'Please select the exact job location on Google Maps.');
+    }
+    const lat = Number(b.latitude), lng = Number(b.longitude);
+    if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lng) || lng < -180 || lng > 180)
+      return fail(res, 400, 'Invalid location coordinates. Latitude must be between -90 and 90, longitude between -180 and 180.');
+    const [x] = await pool.query(`INSERT INTO catering_jobs (owner_id,title,description,work_type,work_area,detailed_location,job_date,start_time,end_time,payment_amount,payment_type,is_on_spot_payment,workers_required,required_skills,contact_phone,contact_email,location_photo_url,apply_deadline,latitude,longitude,location_address) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [id, b.title, b.description || null, b.workType, b.workArea, b.detailedLocation, b.jobDate, b.startTime, b.endTime, b.paymentAmount, b.paymentType, b.onSpotPayment !== false, b.workersRequired, b.requiredSkills || null, b.contactPhone, b.contactEmail || null, b.locationPhotoUrl || null, b.applyDeadline || null, b.latitude || null, b.longitude || null, b.locationAddress || null]);
     const [r] = await pool.query(`${jobSql} WHERE j.id=?`, [x.insertId]);
     ok(res, job(r[0], true), 'Job posted successfully!');
   } catch (e) { next(e); }
@@ -497,8 +512,14 @@ app.get('/api/owner/jobs/:id', auth, guard('ROLE_OWNER'), async (req, res, next)
 app.put('/api/owner/jobs/:id', auth, guard('ROLE_OWNER'), async (req, res, next) => {
   try {
     const b = req.body;
-    await pool.query('UPDATE catering_jobs SET title=?,description=?,work_type=?,work_area=?,detailed_location=?,job_date=?,start_time=?,end_time=?,payment_amount=?,payment_type=?,is_on_spot_payment=?,workers_required=?,required_skills=?,contact_phone=?,contact_email=?,location_photo_url=?,apply_deadline=? WHERE id=? AND owner_id=?',
-      [b.title, b.description, b.workType, b.workArea, b.detailedLocation, b.jobDate, b.startTime, b.endTime, b.paymentAmount, b.paymentType, b.onSpotPayment, b.workersRequired, b.requiredSkills, b.contactPhone, b.contactEmail, b.locationPhotoUrl || null, b.applyDeadline || null, req.params.id, await ownerId(req)]);
+    // Validate location coordinates if provided
+    if (b.latitude != null && b.longitude != null) {
+      const lat = Number(b.latitude), lng = Number(b.longitude);
+      if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lng) || lng < -180 || lng > 180)
+        return fail(res, 400, 'Invalid location coordinates.');
+    }
+    await pool.query('UPDATE catering_jobs SET title=?,description=?,work_type=?,work_area=?,detailed_location=?,job_date=?,start_time=?,end_time=?,payment_amount=?,payment_type=?,is_on_spot_payment=?,workers_required=?,required_skills=?,contact_phone=?,contact_email=?,location_photo_url=?,apply_deadline=?,latitude=?,longitude=?,location_address=? WHERE id=? AND owner_id=?',
+      [b.title, b.description, b.workType, b.workArea, b.detailedLocation, b.jobDate, b.startTime, b.endTime, b.paymentAmount, b.paymentType, b.onSpotPayment, b.workersRequired, b.requiredSkills, b.contactPhone, b.contactEmail, b.locationPhotoUrl || null, b.applyDeadline || null, b.latitude || null, b.longitude || null, b.locationAddress || null, req.params.id, await ownerId(req)]);
     const [r] = await pool.query(`${jobSql} WHERE j.id=?`, [req.params.id]);
     ok(res, job(r[0], true), 'Job updated successfully');
   } catch (e) { next(e); }

@@ -14,6 +14,8 @@ const App = {
     Chat.init();
     this.bindGlobalEvents();
     this.loadPublicJobs();
+    // Preload Google Maps API key for job detail map embeds
+    fetch('/api/public/google-maps-key').then(r=>r.json()).then(j=>{ window._googleMapsKey = j.data?.apiKey || ''; }).catch(()=>{});
     
     // Check initial route / user state
     const user = API.getCurrentUser();
@@ -314,6 +316,7 @@ const App = {
 
           <div class="text-muted small mb-3">
             <div class="mb-1"><i class="bi bi-geo-alt-fill text-danger me-1"></i><strong>Area:</strong> ${App.escapeHtml(job.workArea)}</div>
+            ${job.latitude && job.longitude ? `<div class="mb-1"><a href="https://www.google.com/maps?q=${job.latitude},${job.longitude}" target="_blank" class="text-decoration-none"><i class="bi bi-map me-1"></i><strong>View on Google Maps</strong> <i class="bi bi-box-arrow-up-right" style="font-size:0.7rem"></i></a></div>` : ''}
             <div class="mb-1"><i class="bi bi-calendar3 text-primary me-1"></i><strong>Date:</strong> ${App.formatDate(job.jobDate)}</div>
             <div><i class="bi bi-clock text-primary me-1"></i><strong>Time:</strong> ${App.formatTime(job.startTime)} - ${App.formatTime(job.endTime)}</div>
             ${job.applyDeadline ? `<div class="${new Date(job.applyDeadline) < new Date() ? 'text-danger fw-semibold' : 'text-warning'}"><i class="bi bi-hourglass-split me-1"></i><strong>Apply by:</strong> ${App.formatDate(job.applyDeadline)} ${App.formatTime(job.applyDeadline)}${new Date(job.applyDeadline) < new Date() ? ' (Expired)' : ''}</div>` : ''}
@@ -432,6 +435,20 @@ const App = {
           ` : ''}
 
           ${job.locationPhotoUrl ? `<div class="mb-3"><h6 class="fw-bold">Location Photo:</h6><img src="${App.escapeHtml(job.locationPhotoUrl)}" alt="Location photo" class="img-fluid rounded shadow-sm" style="max-height: 300px; width: 100%; object-fit: cover;" onerror="this.parentElement.style.display='none'"></div>` : ''}
+
+          ${job.latitude && job.longitude ? `
+          <div class="mb-3">
+            <h6 class="fw-bold"><i class="bi bi-geo-alt-fill text-danger me-1"></i>Job Location on Map:</h6>
+            <div class="rounded overflow-hidden border" style="height:220px;">
+              <iframe src="https://www.google.com/maps/embed/v1/place?key=${window._googleMapsKey || ''}&q=${job.latitude},${job.longitude}&zoom=16" width="100%" height="100%" style="border:0;" allowfullscreen loading="lazy"></iframe>
+            </div>
+            ${job.locationAddress ? `<div class="small text-muted mt-1"><i class="bi bi-pin-map me-1"></i>${App.escapeHtml(job.locationAddress)}</div>` : ''}
+            <div class="mt-2 d-flex gap-2 flex-wrap">
+              <a href="https://www.google.com/maps?q=${job.latitude},${job.longitude}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right me-1"></i>Open in Google Maps</a>
+              <a href="https://www.google.com/maps/dir/?api=1&destination=${job.latitude},${job.longitude}" target="_blank" class="btn btn-sm btn-outline-success"><i class="bi bi-sign-turn-right me-1"></i>Get Directions</a>
+            </div>
+          </div>
+          ` : ''}
 
           <!-- Privacy Protected Location Box -->
           <div class="mb-3">
