@@ -149,6 +149,49 @@
   --light-border: var(--color-border);
 }
 
+/* ── BOOTSTRAP VARIABLE OVERRIDES (Dark Mode) ──────────────────────────────── */
+:root[data-theme="dark"] {
+  --bs-body-color: #F8FAFC;
+  --bs-body-color-rgb: 248, 250, 252;
+  --bs-body-bg: #0B1220;
+  --bs-body-bg-rgb: 11, 18, 32;
+  --bs-link-color: #F97316;
+  --bs-link-hover-color: #ea580c;
+  --bs-link-color-rgb: 249, 115, 22;
+  --bs-emphasis-color: #F8FAFC;
+  --bs-secondary-color: #CBD5E1;
+  --bs-secondary-bg: #111827;
+  --bs-tertiary-color: #94A3B8;
+  --bs-code-color: #f97583;
+  --bs-highlight-bg: rgba(249,115,22,0.15);
+  --bs-border-color: #263244;
+  --bs-border-color-translucent: rgba(38,50,68,0.6);
+  --bs-white: #F8FAFC;
+  --bs-black: #0B1220;
+  --bs-gray-100: #1e293b;
+  --bs-gray-200: #263244;
+  --bs-gray-300: #334155;
+  --bs-gray-400: #475569;
+  --bs-gray-500: #64748B;
+  --bs-gray-600: #94A3B8;
+  --bs-gray-700: #CBD5E1;
+  --bs-gray-800: #E2E8F0;
+  --bs-gray-900: #F8FAFC;
+  --bs-primary: #F97316;
+  --bs-primary-rgb: 249, 115, 22;
+  --bs-success: #4ade80;
+  --bs-success-rgb: 74, 222, 128;
+  --bs-danger: #f87171;
+  --bs-danger-rgb: 248, 113, 113;
+  --bs-warning: #fbbf24;
+  --bs-warning-rgb: 251, 191, 36;
+  --bs-info: #60a5fa;
+  --bs-info-rgb: 96, 165, 250;
+  --bs-secondary: #CBD5E1;
+  --bs-secondary-rgb: 203, 213, 225;
+}
+
+
 /* ── DARK MODE ─────────────────────────────────────────────────────────────── */
 :root[data-theme="dark"] {
   --color-background: #0B1220;
@@ -746,7 +789,7 @@ a:hover { color: var(--color-action-hover); }
 :root[data-theme="dark"] .tab-content .card .text-muted { color: #94A3B8 !important; }
 :root[data-theme="dark"] .tab-content .card h5, :root[data-theme="dark"] .tab-content .card h6 { color: #F8FAFC; }
 :root[data-theme="dark"] .fw-bold { color: #F8FAFC; }
-:root[data-theme="dark"] .fw-semibold { color: #CBD5E1; }
+/* .fw-semibold inherits natural color from context */
 :root[data-theme="dark"] #stPaymentsList td, :root[data-theme="dark"] #owPaymentsList td { color: #F8FAFC; }
 :root[data-theme="dark"] #stPaymentsList .fw-bold, :root[data-theme="dark"] #owPaymentsList .fw-bold { color: #F8FAFC; }
 :root[data-theme="dark"] #stPaymentsList .text-muted, :root[data-theme="dark"] #owPaymentsList .text-muted { color: #94A3B8 !important; }
@@ -1692,6 +1735,61 @@ body { top: 0 !important; }
   .footer-founders { padding: 24px 0; }
   .footer-founders-names { font-size: 1rem; }
 }
+
+
+/* ── DARK MODE: SELECT OPTIONS & MISC ───────────────────────────────────────── */
+:root[data-theme="dark"] select option {
+  background: #111827;
+  color: #F8FAFC;
+}
+
+:root[data-theme="dark"] ::-webkit-scrollbar-track { background: #0d1525; }
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #334155; }
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Ensure all lists are visible */
+:root[data-theme="dark"] ul, :root[data-theme="dark"] ol { color: #F8FAFC; }
+
+/* Dark mode: any element with inline bg-light needs fixing */
+:root[data-theme="dark"] [class*="bg-light"]:not(.bg-light-subtle) {
+  background-color: #172033 !important;
+  color: #F8FAFC;
+}
+
+/* Dark mode: fix text inside bg-light containers */
+:root[data-theme="dark"] .bg-light { color: #F8FAFC; }
+
+/* Dark mode: fix page body */
+:root[data-theme="dark"] body { background: #0B1220; color: #F8FAFC; }
+
+/* Dark mode: alerts */
+:root[data-theme="dark"] .alert { color: #F8FAFC; }
+:root[data-theme="dark"] .alert-success { background: rgba(22,163,74,0.15); border-color: rgba(22,163,74,0.3); color: #4ade80; }
+:root[data-theme="dark"] .alert-danger { background: rgba(220,38,38,0.15); border-color: rgba(220,38,38,0.3); color: #f87171; }
+:root[data-theme="dark"] .alert-warning { background: rgba(217,119,6,0.15); border-color: rgba(217,119,6,0.3); color: #fbbf24; }
+:root[data-theme="dark"] .alert-info { background: rgba(37,99,235,0.15); border-color: rgba(37,99,235,0.3); color: #60a5fa; }
+
+/* Dark mode: HR and dividers */
+:root[data-theme="dark"] hr { border-color: #263244; opacity: 0.5; }
+
+/* Dark mode: text-decoration-underline links */
+:root[data-theme="dark"] a.text-decoration-underline { color: var(--color-action); }
+
+/* Dark mode: form-controlplaintext */
+:root[data-theme="dark"] .form-control-plaintext { color: #F8FAFC; }
+
+/* Dark mode: table-active, table-striped */
+:root[data-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > * { --bs-table-bg-type: rgba(17,24,39,0.5); --bs-table-color-type: #F8FAFC; }
+
+/* Dark mode: hover states for cards */
+:root[data-theme="dark"] .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+
+/* Dark mode: all btn classes default text */
+:root[data-theme="dark"] .btn { border-color: #334155; }
+:root[data-theme="dark"] .btn:disabled { background: #1e293b; color: #64748B; border-color: #334155; }
+
+/* Dark mode: inline SVGs should use currentColor */
+:root[data-theme="dark"] svg { color: currentColor; }
 
 /* ══════════════════════════════════════════════════════════════════════════════
    COMPREHENSIVE RESPONSIVE DESIGN
