@@ -151,6 +151,7 @@
 
 /* ── BOOTSTRAP VARIABLE OVERRIDES (Dark Mode) ──────────────────────────────── */
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --bs-body-color: #F8FAFC;
   --bs-body-color-rgb: 248, 250, 252;
   --bs-body-bg: #0B1220;
@@ -191,6 +192,13 @@
   --bs-secondary-rgb: 203, 213, 225;
 }
 
+
+/* ── COLOR SCHEME OVERRIDE ──────────────────────────────────────────────────── */
+/* Prevent Bootstrap 5.3's @media (prefers-color-scheme: dark) from overriding
+   the custom theme system. The data-theme attribute controls the actual mode. */
+:root {
+  color-scheme: light;
+}
 
 /* ── DARK MODE ─────────────────────────────────────────────────────────────── */
 :root[data-theme="dark"] {
@@ -1737,6 +1745,8 @@ body { top: 0 !important; }
 }
 
 
+
+
 /* ── DARK MODE: SELECT OPTIONS & MISC ───────────────────────────────────────── */
 :root[data-theme="dark"] select option {
   background: #111827;
@@ -1790,6 +1800,17 @@ body { top: 0 !important; }
 
 /* Dark mode: inline SVGs should use currentColor */
 :root[data-theme="dark"] svg { color: currentColor; }
+
+/* ── DASHBOARD HEADER TEXT (LIGHT MODE SAFETY) ──────────────────────────────── */
+/* Ensure names and text are always visible in the dark-gradient dashboard headers */
+.dashboard-header h2, .dashboard-header h4, .dashboard-header h3,
+.dashboard-header p, .dashboard-header span, .dashboard-header div {
+  color: #fff !important;
+}
+.dashboard-header-dark h2, .dashboard-header-dark h4, .dashboard-header-dark h3,
+.dashboard-header-dark p, .dashboard-header-dark span, .dashboard-header-dark div {
+  color: #fff !important;
+}
 
 /* ══════════════════════════════════════════════════════════════════════════════
    COMPREHENSIVE RESPONSIVE DESIGN
