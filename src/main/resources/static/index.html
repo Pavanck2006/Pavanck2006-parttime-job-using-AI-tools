@@ -763,13 +763,18 @@
       <!-- Navigation Tabs -->
       <ul class="nav nav-pills nav-pills-custom mb-4" id="studentTabs" role="tablist">
         <li class="nav-item">
-          <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#st-tab-recommended">
-            <i class="bi bi-stars me-1"></i>Recommended Shifts
+          <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#st-tab-available">
+            <i class="bi bi-briefcase me-1"></i>Available Jobs
+          </button>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link" data-bs-toggle="pill" data-bs-target="#st-tab-recommended">
+            <i class="bi bi-stars me-1"></i>Recommended
           </button>
         </li>
         <li class="nav-item">
           <button class="nav-link" data-bs-toggle="pill" data-bs-target="#st-tab-accepted">
-            <i class="bi bi-calendar2-check-fill me-1"></i>Accepted Shifts (Unlocked Venues)
+            <i class="bi bi-calendar2-check-fill me-1"></i>Accepted Shifts
           </button>
         </li>
         <li class="nav-item">
@@ -786,8 +791,21 @@
 
       <!-- Tab Contents -->
       <div class="tab-content">
-        <!-- 1. Recommended -->
-        <div class="tab-pane fade show active" id="st-tab-recommended">
+        <!-- 1. Available Jobs -->
+        <div class="tab-pane fade show active" id="st-tab-available">
+          <div class="mb-3">
+            <h5 class="fw-bold mb-2"><i class="bi bi-briefcase me-2"></i>All Available Jobs</h5>
+            <p class="text-muted small mb-3">Browse all catering jobs from every area. Use the search bar to find jobs in a specific location.</p>
+            <div class="input-group mb-3">
+              <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+              <input type="text" class="form-control border-start-0" id="stAvailableSearch" placeholder="Search by area, job title, or business name..." oninput="Student.filterAvailableJobs()">
+            </div>
+          </div>
+          <div id="stAvailableJobsList" class="row"></div>
+        </div>
+
+        <!-- 2. Recommended -->
+        <div class="tab-pane fade" id="st-tab-recommended">
           <div class="mb-3 d-flex justify-content-between align-items-center">
             <h5 class="fw-bold mb-0">Recommended for your area &amp; skills</h5>
           </div>

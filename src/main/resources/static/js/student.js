@@ -9,6 +9,7 @@ const Student = {
     try {
       await this.loadStats();
       await this.loadRecommendedJobs();
+      await this.loadAvailableJobs();
       await this.loadApplications();
       await this.loadAcceptedJobs();
       await this.loadCompletedJobs();
@@ -486,5 +487,57 @@ const Student = {
       const tab = new bootstrap.Tab(tabEl);
       tab.show();
     }
+  },
+
+  async loadAvailableJobs() {
+    const container = document.getElementById('stAvailableJobsList');
+    if (!container) return;
+
+    try {
+      container.innerHTML = '<div class="col-12 text-center p-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading available jobs...</div>';
+      const jobs = await API.public.getRecommendedJobs();
+      this._allAvailableJobs = jobs || [];
+
+      if (!jobs || jobs.length === 0) {
+        container.innerHTML = '<div class="col-12 text-center p-4 text-muted">No jobs available at the moment. Check back later!</div>';
+        return;
+      }
+
+      this._renderAvailableJobs(jobs);
+    } catch (e) {
+      container.innerHTML = '<div class="col-12 text-center text-danger p-3">Failed to load available jobs</div>';
+    }
+  },
+
+  _renderAvailableJobs(jobs) {
+    const container = document.getElementById('stAvailableJobsList');
+    if (!container) return;
+
+    if (!jobs || jobs.length === 0) {
+      container.innerHTML = '<div class="col-12 text-center p-4 text-muted">No jobs match your search.</div>';
+      return;
+    }
+
+    container.innerHTML = jobs.map(job => App.renderJobCard(job, 'student')).join('');
+  },
+
+  filterAvailableJobs() {
+    const searchInput = document.getElementById('stAvailableSearch');
+    const query = (searchInput?.value || '').trim().toLowerCase();
+    const allJobs = this._allAvailableJobs || [];
+
+    if (!query) {
+      this._renderAvailableJobs(allJobs);
+      return;
+    }
+
+    const filtered = allJobs.filter(job => {
+      const area = (job.workArea || '').toLowerCase();
+      const title = (job.title || '').toLowerCase();
+      const catering = (job.cateringName || '').toLowerCase();
+      return area.includes(query) || title.includes(query) || catering.includes(query);
+    });
+
+    this._renderAvailableJobs(filtered);
   }
 };
