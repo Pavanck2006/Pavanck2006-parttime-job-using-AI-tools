@@ -409,8 +409,20 @@ app.post('/api/owner/jobs', auth, guard('ROLE_OWNER'), async (req, res, next) =>
 
 app.get('/api/owner/jobs', auth, guard('ROLE_OWNER'), async (req, res, next) => {
   try {
-    const [r] = await pool.query(`${jobSql} WHERE j.owner_id=? ORDER BY j.created_at DESC`, [await ownerId(req)]);
-    ok(res, r.map(x => job(x, true)));
+    const oid = await ownerId(req);
+    const [r] = await pool.query(`${jobSql} WHERE j.owner_id=? ORDER BY j.created_at DESC`, [oid]);
+    // Enrich each job with canDelete flag (true only if at least one ACCEPTED application exists)
+    const jobIds = r.map(x => x.id);
+    let acceptedMap = {};
+    if (jobIds.length > 0) {
+      const placeholders = jobIds.map(() => '?').join(',');
+      const [acceptedRows] = await pool.query(
+        `SELECT job_id, COUNT(*) cnt FROM job_applications WHERE job_id IN (${placeholders}) AND status='ACCEPTED' GROUP BY job_id`,
+        jobIds
+      );
+      acceptedRows.forEach(row => { acceptedMap[row.job_id] = row.cnt > 0; });
+    }
+    ok(res, r.map(x => ({...job(x, true), canDelete: !!acceptedMap[x.id]})));
   } catch (e) { next(e); }
 });
 
@@ -435,8 +447,22 @@ app.put('/api/owner/jobs/:id', auth, guard('ROLE_OWNER'), async (req, res, next)
 
 app.delete('/api/owner/jobs/:id', auth, guard('ROLE_OWNER'), async (req, res, next) => {
   try {
-    await pool.query("UPDATE catering_jobs SET status='CANCELLED' WHERE id=? AND owner_id=?", [req.params.id, await ownerId(req)]);
-    ok(res, null, 'Job cancelled successfully');
+    const oid = await ownerId(req);
+    const data = await transaction(async c => {
+      // 1. Verify job exists and belongs to this owner
+      const [[job]] = await c.query('SELECT id, status FROM catering_jobs WHERE id=? AND owner_id=? FOR UPDATE', [req.params.id, oid]);
+      if (!job) throw Object.assign(new Error('Job not found'), {status: 404});
+
+      // 2. Check if at least one application is ACCEPTED
+      const [[acceptedCount]] = await c.query("SELECT COUNT(*) count FROM job_applications WHERE job_id=? AND status='ACCEPTED'", [job.id]);
+      if (acceptedCount.count === 0) {
+        throw Object.assign(new Error('You can delete this job only after accepting at least one student application.'), {status: 400});
+      }
+
+      // 3. Delete the job (CASCADE handles applications and payment records)
+      await c.query('DELETE FROM catering_jobs WHERE id=? AND owner_id=?', [job.id, oid]);
+    });
+    ok(res, null, 'Job deleted successfully');
   } catch (e) { next(e); }
 });
 

@@ -203,8 +203,10 @@ async updateProfile(e) {
                     <button class="btn btn-sm btn-outline-success" onclick="Owner.completeJob(${job.id})">
                       <i class="bi bi-check2-all me-1"></i>Complete
                     </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="Owner.cancelJob(${job.id})">
-                      <i class="bi bi-trash"></i>
+                  ` : ''}
+                  ${job.canDelete ? `
+                    <button class="btn btn-sm btn-outline-danger" onclick="Owner.deleteJob(${job.id}, '${App.escapeHtml(job.title)}')">
+                      <i class="bi bi-trash me-1"></i>Delete
                     </button>
                   ` : ''}
                 </div>
@@ -447,6 +449,28 @@ async updateProfile(e) {
       await this.loadMyJobs();
     } catch (err) {
       App.showToast(err.message || 'Failed to cancel job', 'danger');
+    }
+  },
+
+  async deleteJob(jobId, jobTitle) {
+    const confirmed = confirm(`Are you sure you want to permanently delete "${jobTitle}"?\n\nThis action cannot be undone. The job will be removed from the platform.`);
+    if (!confirmed) return;
+
+    const btn = document.querySelector(`button[onclick*="Owner.deleteJob(${jobId}"]`);
+    try {
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Deleting...';
+      }
+      await API.owner.cancelJob(jobId);
+      App.showToast('Job deleted successfully!', 'success');
+      await this.loadMyJobs();
+    } catch (err) {
+      App.showToast(err.message || 'Failed to delete job', 'danger');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-trash me-1"></i>Delete';
+      }
     }
   },
 
