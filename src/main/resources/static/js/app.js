@@ -14,8 +14,6 @@ const App = {
     Chat.init();
     this.bindGlobalEvents();
     this.loadPublicJobs();
-    // Preload Google Maps API key for job detail map embeds
-    fetch('/api/public/google-maps-key').then(r=>r.json()).then(j=>{ window._googleMapsKey = j.data?.apiKey || ''; }).catch(()=>{});
     
     // Check initial route / user state
     const user = API.getCurrentUser();
@@ -438,12 +436,13 @@ const App = {
 
           ${job.latitude && job.longitude ? `
           <div class="mb-3">
-            <h6 class="fw-bold"><i class="bi bi-geo-alt-fill text-danger me-1"></i>Job Location on Map:</h6>
-            <div class="rounded overflow-hidden border" style="height:220px;">
-              <iframe src="https://www.google.com/maps/embed/v1/place?key=${window._googleMapsKey || ''}&q=${job.latitude},${job.longitude}&zoom=16" width="100%" height="100%" style="border:0;" allowfullscreen loading="lazy"></iframe>
+            <h6 class="fw-bold"><i class="bi bi-geo-alt-fill text-danger me-1"></i>Job Location</h6>
+            <div class="rounded overflow-hidden border mb-2" style="height:200px; background:#f0f0f0;">
+              <img src="https://maps.geoapify.com/v1/staticmap?style=osm-bright&width=600&height=400&center=lonlat:${job.longitude},${job.latitude}&zoom=15&marker=lonlat:${job.longitude},${job.latitude};color:%23ff0000;size:medium&apiKey=demo" alt="Job Location Map" style="width:100%; height:100%; object-fit:cover;" onerror="this.parentElement.innerHTML='<div class=\'d-flex align-items-center justify-content-center h-100 text-muted\'><i class=\'bi bi-map fs-1\'></i></div>'">
             </div>
-            ${job.locationAddress ? `<div class="small text-muted mt-1"><i class="bi bi-pin-map me-1"></i>${App.escapeHtml(job.locationAddress)}</div>` : ''}
-            <div class="mt-2 d-flex gap-2 flex-wrap">
+            ${job.locationAddress ? `<div class="small text-muted mb-2"><i class="bi bi-pin-map me-1"></i>${App.escapeHtml(job.locationAddress)}</div>` : ''}
+            <div class="small text-muted mb-2"><i class="bi bi-crosshair me-1"></i>Lat: ${job.latitude.toFixed(6)} | Lng: ${job.longitude.toFixed(6)}</div>
+            <div class="d-flex gap-2 flex-wrap">
               <a href="https://www.google.com/maps?q=${job.latitude},${job.longitude}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-box-arrow-up-right me-1"></i>Open in Google Maps</a>
               <a href="https://www.google.com/maps/dir/?api=1&destination=${job.latitude},${job.longitude}" target="_blank" class="btn btn-sm btn-outline-success"><i class="bi bi-sign-turn-right me-1"></i>Get Directions</a>
             </div>

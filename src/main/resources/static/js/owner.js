@@ -12,7 +12,6 @@ const Owner = {
       await this.loadClosedJobs();
       await this.loadPayments();
       await this.loadComplaints();
-      this.initJobMap();
     } catch (err) {
       console.error('Error loading owner dashboard:', err);
     }
@@ -364,7 +363,7 @@ async updateProfile(e) {
 
       // Validate location is selected
       if (!payload.latitude || !payload.longitude) {
-        App.showToast('Please select the job location on Google Maps.', 'error');
+        App.showToast('Please capture the exact GPS location before posting this job.', 'warning');
         return;
       }
 
@@ -378,10 +377,9 @@ async updateProfile(e) {
       document.getElementById('jobLatitude').value = '';
       document.getElementById('jobLongitude').value = '';
       document.getElementById('jobLocationAddress').value = '';
-      document.getElementById('jobLocationConfirm').classList.add('d-none');
-      document.getElementById('jobLocationStatus').innerHTML = '<i class="bi bi-info-circle me-1"></i>Search and click on the map to set the exact job location.';
-      document.getElementById('jobLocationSearch').value = '';
-      if (this._map) { this._marker && this._marker.setPosition(this._defaultCenter); this._map.setCenter(this._defaultCenter); }
+      document.getElementById('gpsLocationInfo').classList.add('d-none');
+      document.getElementById('gpsLocationError').classList.add('d-none');
+      document.getElementById('gpsLocationStatus').innerHTML = '<i class="bi bi-info-circle me-1"></i>Location not captured yet. Tap the button above.';
 
       // Switch to Active Jobs tab
       const tabEl = document.querySelector('button[data-bs-target="#ow-tab-jobs"]');
@@ -714,104 +712,87 @@ async updateProfile(e) {
     document.getElementById('owProfEditBtn')?.classList.remove('d-none');
   },
 
-  // ─── Google Maps Location Picker ──────────────────────────────────────────
-  _defaultCenter: {lat: 12.9716, lng: 77.5946},
-  _map: null,
-  _marker: null,
-  _autocomplete: null,
-  _mapsLoaded: false,
+  // ─── Browser GPS Location Capture ─────────────────────────────────────────
 
-  async initJobMap() {
-    if (this._mapsLoaded) return;
-    try {
-      const res = await fetch('/api/public/google-maps-key');
-      const json = await res.json();
-      const key = json.data?.apiKey;
-      if (!key) {
-        document.getElementById('jobLocationStatus').innerHTML = '<i class="bi bi-exclamation-triangle text-warning me-1"></i>Google Maps API key not configured. Contact admin.';
-        return;
-      }
-      // Load Google Maps script
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&callback=Owner._onMapsLoaded`;
-      script.async = true;
-      script.defer = true;
-      window.Owner = window.Owner || this;
-      document.head.appendChild(script);
-    } catch (e) {
-      console.error('Failed to load Google Maps:', e);
+  captureGpsLocation() {
+    if (!navigator.geolocation) {
+      this._showGpsError('Geolocation is not supported by your browser.');
+      return;
     }
+
+    const btn = document.getElementById('gpsCaptureBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Capturing Location...';
+    document.getElementById('gpsLocationStatus').innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Requesting location permission...';
+    document.getElementById('gpsLocationError').classList.add('d-none');
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const accuracy = position.coords.accuracy;
+
+        // Store coordinates in hidden fields
+        document.getElementById('jobLatitude').value = lat;
+        document.getElementById('jobLongitude').value = lng;
+
+        // Show coordinates
+        document.getElementById('gpsLat').textContent = lat.toFixed(6);
+        document.getElementById('gpsLng').textContent = lng.toFixed(6);
+        document.getElementById('gpsAccuracy').textContent = 'Accuracy: \u00B1' + Math.round(accuracy) + ' meters';
+
+        // Try reverse geocoding using free Nominatim API
+        document.getElementById('gpsLocationStatus').innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Getting address...';
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, {
+          headers: { 'Accept-Language': 'en' }
+        })
+        .then(res => res.json())
+        .then(data => {
+          const address = data.display_name || lat.toFixed(6) + ', ' + lng.toFixed(6);
+          document.getElementById('jobLocationAddress').value = address;
+          document.getElementById('gpsAddress').textContent = address;
+          document.getElementById('gpsLocationStatus').innerHTML = '<i class="bi bi-check-circle text-success me-1"></i>Location captured successfully!';
+          document.getElementById('gpsLocationInfo').classList.remove('d-none');
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-arrow-repeat me-2"></i>Capture Again';
+        })
+        .catch(() => {
+          // Even if geocoding fails, coordinates are saved
+          const fallback = lat.toFixed(6) + ', ' + lng.toFixed(6);
+          document.getElementById('jobLocationAddress').value = fallback;
+          document.getElementById('gpsAddress').textContent = fallback;
+          document.getElementById('gpsLocationStatus').innerHTML = '<i class="bi bi-check-circle text-success me-1"></i>Location captured! (Address lookup unavailable)';
+          document.getElementById('gpsLocationInfo').classList.remove('d-none');
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-arrow-repeat me-2"></i>Capture Again';
+        });
+      },
+      (error) => {
+        let msg;
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            msg = 'Location permission was denied. Please allow location access in your browser/device settings and try again.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            msg = 'Your location could not be determined. Please check your device location services and try again.';
+            break;
+          case error.TIMEOUT:
+            msg = 'Getting your location took too long. Please try again.';
+            break;
+          default:
+            msg = 'Unable to get your location. Please try again.';
+        }
+        this._showGpsError(msg);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-crosshair me-2"></i>Get Exact GPS Location';
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
   },
 
-  _onMapsLoaded() {
-    this._mapsLoaded = true;
-    const mapEl = document.getElementById('jobMap');
-    mapEl.style.display = 'block';
-    this._map = new google.maps.Map(mapEl, {
-      center: this._defaultCenter,
-      zoom: 13,
-      mapTypeControl: false,
-      streetViewControl: false
-    });
-    this._marker = new google.maps.Marker({
-      position: this._defaultCenter,
-      map: this._map,
-      draggable: true,
-      title: 'Drag to adjust location'
-    });
-    // Click on map to move marker
-    this._map.addListener('click', (e) => {
-      this._placeMarker(e.latLng);
-    });
-    // Marker drag end
-    this._marker.addListener('dragend', () => {
-      this._reverseGeocode(this._marker.getPosition());
-    });
-    // Autocomplete search
-    const searchInput = document.getElementById('jobLocationSearch');
-    this._autocomplete = new google.maps.places.Autocomplete(searchInput, {
-      fields: ['formatted_address', 'geometry', 'name']
-    });
-    this._autocomplete.addListener('place_changed', () => {
-      const place = this._autocomplete.getPlace();
-      if (place.geometry?.location) {
-        this._map.setCenter(place.geometry.location);
-        this._map.setZoom(16);
-        this._placeMarker(place.geometry.location, place.formatted_address);
-      }
-    });
-  },
-
-  _placeMarker(latLng, address) {
-    this._marker.setPosition(latLng);
-    this._map.panTo(latLng);
-    document.getElementById('jobLatitude').value = latLng.lat();
-    document.getElementById('jobLongitude').value = latLng.lng();
-    document.getElementById('jobLocationStatus').innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Getting address...';
-    if (address) {
-      this._setLocationDisplay(latLng, address);
-    } else {
-      this._reverseGeocode(latLng);
-    }
-  },
-
-  _reverseGeocode(latLng) {
-    const geocoder = new google.maps.Geocoder();
-    geocoder.geocode({location: latLng}, (results, status) => {
-      if (status === 'OK' && results[0]) {
-        this._setLocationDisplay(latLng, results[0].formatted_address);
-      } else {
-        this._setLocationDisplay(latLng, `${latLng.lat()}, ${latLng.lng()}`);
-      }
-    });
-  },
-
-  _setLocationDisplay(latLng, address) {
-    document.getElementById('jobLatitude').value = latLng.lat();
-    document.getElementById('jobLongitude').value = latLng.lng();
-    document.getElementById('jobLocationAddress').value = address;
-    document.getElementById('jobLocationDisplay').textContent = address;
-    document.getElementById('jobLocationConfirm').classList.remove('d-none');
-    document.getElementById('jobLocationStatus').innerHTML = '<i class="bi bi-check-circle text-success me-1"></i>Location selected successfully!';
+  _showGpsError(msg) {
+    document.getElementById('gpsErrorMsg').textContent = msg;
+    document.getElementById('gpsLocationError').classList.remove('d-none');
+    document.getElementById('gpsLocationStatus').innerHTML = '<i class="bi bi-info-circle me-1"></i>Location capture failed. Try again.';
   }
 };
