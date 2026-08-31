@@ -155,6 +155,15 @@ const API = {
         body: JSON.stringify({ status: 'CONFIRMED', notes })
       });
     },
+    getDeletionRequests() {
+      return API.request('/student/deletion-requests');
+    },
+    acceptDeletionRequest(id) {
+      return API.request(`/student/deletion-requests/${id}/accept`, { method: 'POST' });
+    },
+    rejectDeletionRequest(id) {
+      return API.request(`/student/deletion-requests/${id}/reject`, { method: 'POST' });
+    },
     getPayments() {
       return API.request('/student/payments');
     }
@@ -173,6 +182,9 @@ const API = {
     },
     getMyJobs() {
       return API.request('/owner/jobs');
+    },
+    getClosedJobs() {
+      return API.request('/owner/jobs/closed');
     },
     getJob(id) {
       return API.request(`/owner/jobs/${id}`);
@@ -207,6 +219,7 @@ const API = {
         method: 'PUT'
       });
     },
+
     markAttendance(appId, attendanceStatus, workCompletionStatus = 'COMPLETED') {
       return API.request(`/owner/applications/${appId}/attendance`, {
         method: 'PUT',

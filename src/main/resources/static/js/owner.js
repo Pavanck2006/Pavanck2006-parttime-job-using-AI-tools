@@ -9,6 +9,7 @@ const Owner = {
     try {
       await this.loadProfile();
       await this.loadMyJobs();
+      await this.loadClosedJobs();
       await this.loadPayments();
       await this.loadComplaints();
     } catch (err) {
@@ -187,6 +188,7 @@ async updateProfile(e) {
                   </div>
                   ${job.locationPhotoUrl ? `<div class="mt-2"><img src="${App.escapeHtml(job.locationPhotoUrl)}" alt="Location" class="rounded" style="max-height: 80px; object-fit: cover;" onerror="this.style.display='none'"></div>` : ''}
                   <div class="small text-muted"><i class="bi bi-geo-alt me-1"></i>${App.escapeHtml(job.detailedLocation)}</div>
+                  ${job.applyDeadline ? `<div class="small ${new Date(job.applyDeadline) < new Date() ? 'text-danger fw-semibold' : 'text-warning'}"><i class="bi bi-clock me-1"></i>Apply by: ${App.formatDate(job.applyDeadline)} ${App.formatTime(job.applyDeadline)}${new Date(job.applyDeadline) < new Date() ? ' (Deadline passed)' : ''}</div>` : ''}
                 </div>
 
                 <div class="col-lg-3 mb-2 mb-lg-0 text-lg-center">
@@ -217,6 +219,69 @@ async updateProfile(e) {
       }).join('');
     } catch (err) {
       container.innerHTML = `<div class="text-center text-danger p-3">Failed to load jobs: ${err.message}</div>`;
+    }
+  },
+
+
+  async loadClosedJobs() {
+    const container = document.getElementById('owClosedJobsList');
+    if (!container) return;
+    try {
+      container.innerHTML = '<div class="text-center p-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading closed jobs...</div>';
+      const jobs = await API.owner.getClosedJobs();
+      if (!jobs || jobs.length === 0) {
+        container.innerHTML = '<div class="text-center p-4 text-muted"><i class="bi bi-archive fs-2 d-block mb-2"></i>No closed jobs yet. Jobs appear here after their application deadline passes.</div>';
+        return;
+      }
+      container.innerHTML = jobs.map(job => {
+        const applicants = job.applicants || [];
+        const accepted = applicants.filter(a => a.status === 'ACCEPTED');
+        const pending = applicants.filter(a => a.status === 'APPLIED');
+        const rejected = applicants.filter(a => a.status === 'REJECTED');
+        return `
+          <div class="card mb-3 shadow-sm border-0 border-start border-4 border-secondary">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                  <h5 class="fw-bold mb-1">${App.escapeHtml(job.title)}</h5>
+                  <div class="text-muted small mb-2">
+                    <span class="badge bg-light text-dark border me-1">${job.workTypeDisplayName || job.workType}</span>
+                    <span>📍 ${App.escapeHtml(job.workArea)}</span>
+                    <span class="ms-2">📅 ${App.formatDate(job.jobDate)}</span>
+                  </div>
+                  ${job.isDeadlinePassed ? '<span class="badge bg-warning text-dark"><i class="bi bi-clock me-1"></i>Deadline Passed</span>' : ''}
+                  ${job.status === 'CANCELLED' ? '<span class="badge bg-danger ms-1">Cancelled</span>' : ''}
+                  ${job.status === 'COMPLETED' ? '<span class="badge bg-primary ms-1">Completed</span>' : ''}
+                </div>
+                <div class="text-end">
+                  <div class="fw-bold fs-5 text-success">₹${job.paymentAmount}</div>
+                  <div class="small text-muted">${job.workersSelected || 0} / ${job.workersRequired} hired</div>
+                </div>
+              </div>
+              <hr class="my-2">
+              <h6 class="fw-semibold mb-2"><i class="bi bi-people me-1"></i>Student Information (${applicants.length} applicants)</h6>
+              ${applicants.length === 0 ? '<div class="text-muted small">No students applied for this job.</div>' : `
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead><tr><th>Student Name</th><th>College</th><th>Applied On</th><th>Status</th></tr></thead>
+                  <tbody>
+                    ${applicants.map(a => `
+                      <tr>
+                        <td class="fw-semibold">${App.escapeHtml(a.studentName)}${a.studentPhone ? ` <a href="tel:${a.studentPhone}" class="text-muted"><i class="bi bi-telephone-fill small"></i></a>` : ''}</td>
+                        <td class="small text-muted">${App.escapeHtml(a.collegeName || '-')}</td>
+                        <td class="small text-muted">${App.formatDate(a.appliedAt)} ${App.formatTime(a.appliedAt)}</td>
+                        <td>${a.status === 'ACCEPTED' ? '<span class="badge bg-success">Accepted</span>' : a.status === 'REJECTED' ? '<span class="badge bg-danger">Rejected</span>' : '<span class="badge bg-warning text-dark">Pending</span>'}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>`}
+            </div>
+          </div>
+        `;
+      }).join('');
+    } catch (err) {
+      container.innerHTML = `<div class="text-center text-danger p-3">Failed to load closed jobs: ${err.message}</div>`;
     }
   },
 
@@ -262,6 +327,16 @@ async updateProfile(e) {
         locationPhotoUrl = uploadData.data?.url;
       }
 
+      // Build apply deadline from date + time fields
+      let applyDeadline = null;
+      const deadlineDateEl = document.getElementById('jobApplyDeadlineDate');
+      const deadlineTimeEl = document.getElementById('jobApplyDeadlineTime');
+      if (deadlineDateEl?.value && deadlineTimeEl?.value) {
+        applyDeadline = `${deadlineDateEl.value}T${deadlineTimeEl.value}:00`;
+      } else if (deadlineDateEl?.value) {
+        applyDeadline = `${deadlineDateEl.value}T23:59:59`;
+      }
+
       const payload = {
         title: document.getElementById('jobTitle').value.trim(),
         description: document.getElementById('jobDescription').value.trim(),
@@ -278,6 +353,7 @@ async updateProfile(e) {
         requiredSkills: document.getElementById('jobRequiredSkills').value.trim(),
         contactPhone: document.getElementById('jobContactPhone').value.trim(),
         contactEmail: document.getElementById('jobContactEmail').value.trim(),
+        applyDeadline,
         locationPhotoUrl
       };
 
@@ -375,6 +451,7 @@ async updateProfile(e) {
                         <button class="btn btn-success" onclick="Owner.acceptApplicant(${app.id})"><i class="bi bi-check2"></i> Accept</button>
                         <button class="btn btn-outline-danger" onclick="Owner.rejectApplicant(${app.id})"><i class="bi bi-x"></i> Reject</button>
                       ` : ''}
+
                       
                       ${(app.status === 'ACCEPTED' || app.status === 'COMPLETED') && app.paymentStatus !== 'PAID' && app.paymentStatus !== 'CONFIRMED' ? `
                         <button class="btn btn-outline-success" onclick="Owner.markPaymentPaid(${app.id}, ${app.paymentAmount})">
@@ -441,36 +518,20 @@ async updateProfile(e) {
     }
   },
 
-  async cancelJob(jobId) {
-    if (!confirm('Are you sure you want to cancel this job? Applied students will be notified.')) return;
-    try {
-      await API.owner.cancelJob(jobId);
-      App.showToast('Job cancelled', 'info');
-      await this.loadMyJobs();
-    } catch (err) {
-      App.showToast(err.message || 'Failed to cancel job', 'danger');
-    }
-  },
+
 
   async deleteJob(jobId, jobTitle) {
-    const confirmed = confirm(`Are you sure you want to permanently delete "${jobTitle}"?\n\nThis action cannot be undone. The job will be removed from the platform.`);
-    if (!confirmed) return;
-
     const btn = document.querySelector(`button[onclick*="Owner.deleteJob(${jobId}"]`);
     try {
-      if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Deleting...';
+      const result = await API.owner.cancelJob(jobId);
+      if (result && result.requestCreated) {
+        App.showToast(`Deletion request sent to the hired student(s). They will approve or reject the deletion.`, 'info');
+      } else {
+        App.showToast('Job deleted successfully!', 'success');
       }
-      await API.owner.cancelJob(jobId);
-      App.showToast('Job deleted successfully!', 'success');
       await this.loadMyJobs();
     } catch (err) {
       App.showToast(err.message || 'Failed to delete job', 'danger');
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-trash me-1"></i>Delete';
-      }
     }
   },
 

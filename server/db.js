@@ -27,6 +27,26 @@ async function initializeDatabase() {
   // Migration: add profile_photo_url to profile tables
   try { await pool.query('ALTER TABLE student_profiles ADD COLUMN profile_photo_url TEXT'); } catch (e) { if (e.errno !== 1060) throw e; }
   try { await pool.query('ALTER TABLE owner_profiles ADD COLUMN profile_photo_url TEXT'); } catch (e) { if (e.errno !== 1060) throw e; }
+  // Migration: add apply_deadline to catering_jobs
+  try { await pool.query('ALTER TABLE catering_jobs ADD COLUMN apply_deadline DATETIME NULL'); } catch (e) { if (e.errno !== 1060) throw e; }
+  // Migration: add job_deletion_requests table
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS job_deletion_requests (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      job_id BIGINT NOT NULL,
+      owner_id BIGINT NOT NULL,
+      student_id BIGINT NOT NULL,
+      status VARCHAR(30) DEFAULT 'PENDING',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      responded_at TIMESTAMP NULL,
+      CONSTRAINT fk_delreq_job FOREIGN KEY (job_id) REFERENCES catering_jobs(id) ON DELETE CASCADE,
+      CONSTRAINT fk_delreq_owner FOREIGN KEY (owner_id) REFERENCES owner_profiles(id) ON DELETE CASCADE,
+      CONSTRAINT fk_delreq_student FOREIGN KEY (student_id) REFERENCES student_profiles(id) ON DELETE CASCADE,
+      INDEX idx_delreq_job (job_id),
+      INDEX idx_delreq_student (student_id),
+      INDEX idx_delreq_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+  } catch (e) { if (e.errno !== 1050) throw e; }
   if (process.env.RUN_SEED !== 'false') {
     const seed = path.join(__dirname, '..', 'src', 'main', 'resources', 'data.sql');
     if (fs.existsSync(seed)) for (const statement of statements(seed)) try { await pool.query(statement); } catch (e) { if (![1062, 1451, 1452].includes(e.errno)) throw e; }

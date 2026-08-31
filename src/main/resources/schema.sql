@@ -1,6 +1,6 @@
--- ==============================================================================
+-- ==================================================================================
 -- DATABASE SCHEMA: PartTime Job Platform (MySQL 8+)
--- ==============================================================================
+-- ==================================================================================
 
 -- 1. Users Table
 CREATE TABLE IF NOT EXISTS users (
@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS catering_jobs (
     contact_email VARCHAR(120),
     location_photo_url TEXT,
     status VARCHAR(30) DEFAULT 'OPEN',
+    apply_deadline DATETIME NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_job_owner FOREIGN KEY (owner_id) REFERENCES owner_profiles(id) ON DELETE CASCADE,
@@ -170,7 +171,24 @@ CREATE TABLE IF NOT EXISTS notifications (
     INDEX idx_notif_read (is_read)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 9. Audit Logs
+-- 9. Job Deletion Requests
+CREATE TABLE IF NOT EXISTS job_deletion_requests (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    job_id BIGINT NOT NULL,
+    owner_id BIGINT NOT NULL,
+    student_id BIGINT NOT NULL,
+    status VARCHAR(30) DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    responded_at TIMESTAMP NULL,
+    CONSTRAINT fk_delreq_job FOREIGN KEY (job_id) REFERENCES catering_jobs(id) ON DELETE CASCADE,
+    CONSTRAINT fk_delreq_owner FOREIGN KEY (owner_id) REFERENCES owner_profiles(id) ON DELETE CASCADE,
+    CONSTRAINT fk_delreq_student FOREIGN KEY (student_id) REFERENCES student_profiles(id) ON DELETE CASCADE,
+    INDEX idx_delreq_job (job_id),
+    INDEX idx_delreq_student (student_id),
+    INDEX idx_delreq_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 10. Audit Logs
 CREATE TABLE IF NOT EXISTS audit_logs (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NULL,

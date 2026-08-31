@@ -15,6 +15,7 @@ const Student = {
       await this.loadProfile();
       await this.loadPayments();
       await this.loadReports();
+      await this.loadDeletionRequests();
     } catch (err) {
       console.error('Error loading student dashboard:', err);
     }
@@ -253,7 +254,7 @@ const Student = {
                 <div class="col-6"><i class="bi bi-check2-circle me-1"></i>Attendance: <strong>${app.attendanceStatus}</strong></div>
               </div>
 
-              <div class="d-flex gap-2">
+              <div class="d-flex gap-2 flex-wrap">
                 <button class="btn btn-sm btn-primary-custom flex-grow-1" onclick="App.openConfirmPaymentModal(${app.id}, '${App.escapeHtml(app.jobTitle)}', ${app.paymentAmount})">
                   <i class="bi bi-cash-stack me-1"></i>Confirm Payment
                 </button>
@@ -344,6 +345,86 @@ const Student = {
       await this.loadReports();
     } catch (err) {
       App.showToast(err.message || 'Failed to withdraw complaint', 'danger');
+    }
+  },
+
+
+
+  async loadDeletionRequests() {
+    const container = document.getElementById('stDeletionRequestsList');
+    if (!container) return;
+    try {
+      container.innerHTML = '<div class="col-12 text-center p-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading deletion requests...</div>';
+      const requests = await API.student.getDeletionRequests();
+      if (!requests || requests.length === 0) {
+        container.innerHTML = '<div class="col-12 text-center p-4 text-muted"><i class="bi bi-check-circle fs-2 d-block mb-2"></i>No pending job deletion requests.</div>';
+        return;
+      }
+      container.innerHTML = requests.map(req => {
+        let statusBadge = '';
+        if (req.status === 'PENDING') statusBadge = '<span class="badge bg-warning text-dark">Awaiting Your Response</span>';
+        else if (req.status === 'ACCEPTED') statusBadge = '<span class="badge bg-success">Accepted — Job Deleted</span>';
+        else if (req.status === 'REJECTED') statusBadge = '<span class="badge bg-info">Rejected — Job Active</span>';
+        return `
+          <div class="col-md-6 mb-3">
+            <div class="card h-100 shadow-sm ${req.status === 'PENDING' ? 'border-warning' : req.status === 'ACCEPTED' ? 'border-success' : 'border-secondary'}">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <h5 class="fw-bold mb-0">${App.escapeHtml(req.jobTitle)}</h5>
+                  ${statusBadge}
+                </div>
+                <div class="text-muted small mb-2">
+                  <i class="bi bi-building me-1"></i>${App.escapeHtml(req.cateringName || req.ownerName)}
+                  <span class="ms-2">📅 ${App.formatDate(req.jobDate)}</span>
+                </div>
+                <div class="text-muted small mb-3">
+                  <i class="bi bi-clock me-1"></i>${App.formatTime(req.startTime)} - ${App.formatTime(req.endTime)}
+                  <span class="ms-2">📍 ${App.escapeHtml(req.workArea)}</span>
+                </div>
+                ${req.status === 'PENDING' ? `
+                  <div class="alert alert-warning py-2 mb-3 small">
+                    <i class="bi bi-exclamation-triangle me-1"></i>The owner wants to delete this job. If you accept, the job will be permanently removed.
+                  </div>
+                  <div class="d-flex gap-2">
+                    <button class="btn btn-success flex-grow-1" onclick="Student.handleDeletionRequest(${req.id}, 'accept')">
+                      <i class="bi bi-check-circle me-1"></i>Accept — Delete Job
+                    </button>
+                    <button class="btn btn-outline-danger flex-grow-1" onclick="Student.handleDeletionRequest(${req.id}, 'reject')">
+                      <i class="bi bi-x-circle me-1"></i>Reject — Keep Job
+                    </button>
+                  </div>
+                ` : req.status === 'ACCEPTED' ? `
+                  <div class="alert alert-success py-2 mb-0 small">Job has been deleted as per your approval.</div>
+                ` : `
+                  <div class="alert alert-secondary py-2 mb-0 small">You rejected the deletion. The job remains active.</div>
+                `}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    } catch (err) {
+      container.innerHTML = `<div class="col-12 text-center text-danger p-3">Failed to load deletion requests: ${err.message}</div>`;
+    }
+  },
+
+  async handleDeletionRequest(requestId, action) {
+    const msg = action === 'accept'
+      ? 'Accept this deletion request? The job will be permanently deleted.'
+      : 'Reject this deletion request? The job will remain active.';
+    if (!confirm(msg)) return;
+    try {
+      if (action === 'accept') {
+        await API.student.acceptDeletionRequest(requestId);
+        App.showToast('Request accepted. The job has been deleted.', 'success');
+      } else {
+        await API.student.rejectDeletionRequest(requestId);
+        App.showToast('Request rejected. The job remains active.', 'info');
+      }
+      await this.loadDeletionRequests();
+      await this.loadApplications();
+    } catch (err) {
+      App.showToast(err.message || 'Failed to process request', 'danger');
     }
   },
 

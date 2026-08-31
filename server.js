@@ -180,6 +180,7 @@ function job(r, unlocked = false) {
     contactPhone: unlocked ? r.contact_phone : undefined,
     contactEmail: unlocked ? r.contact_email : undefined,
     locationPhotoUrl: r.location_photo_url || null,
+    applyDeadline: r.apply_deadline || null,
     status: r.status, cateringName: r.catering_name,
     ownerId: r.owner_user_id,
     ownerVerified: r.verification_status === 'VERIFIED',
@@ -239,7 +240,7 @@ function profile(r) {
 
 async function listJobs(req, res, next) {
   try {
-    let sql = `${jobSql} WHERE j.status='OPEN' AND u.is_suspended=FALSE`, v = [];
+    let sql = `${jobSql} WHERE j.status='OPEN' AND u.is_suspended=FALSE AND (j.apply_deadline IS NULL OR j.apply_deadline > NOW())`, v = [];
     const q = req.query;
     if (q.area || q.location) { sql += ' AND LOWER(j.work_area) LIKE LOWER(?)'; v.push(`%${q.area || q.location}%`); }
     if (q.workType) { sql += ' AND j.work_type=?'; v.push(q.workType); }
@@ -313,6 +314,11 @@ app.post('/api/student/jobs/:jobId/apply', auth, guard('ROLE_STUDENT'), async (r
       const [[s]] = await c.query('SELECT id FROM student_profiles WHERE user_id=?', [req.user.id]);
       const [[j]] = await c.query('SELECT * FROM catering_jobs WHERE id=? FOR UPDATE', [req.params.jobId]);
       if (!s || !j || j.status !== 'OPEN') throw Object.assign(new Error('Job is not available'), {status: 400});
+      // Check application deadline
+      if (j.apply_deadline) {
+        const deadline = new Date(j.apply_deadline);
+        if (new Date() > deadline) throw Object.assign(new Error('The application deadline for this job has passed.'), {status: 400});
+      }
       const [x] = await c.query('INSERT INTO job_applications (job_id,student_id,payment_amount,notes) VALUES (?,?,?,?)',
         [j.id, s.id, j.payment_amount, req.body.notes || null]);
       const [r] = await c.query(`${appSql} WHERE a.id=?`, [x.insertId]);
@@ -400,8 +406,8 @@ app.put('/api/owner/profile', auth, guard('ROLE_OWNER'), async (req, res, next) 
 app.post('/api/owner/jobs', auth, guard('ROLE_OWNER'), async (req, res, next) => {
   try {
     const b = req.body, id = await ownerId(req);
-    const [x] = await pool.query(`INSERT INTO catering_jobs (owner_id,title,description,work_type,work_area,detailed_location,job_date,start_time,end_time,payment_amount,payment_type,is_on_spot_payment,workers_required,required_skills,contact_phone,contact_email,location_photo_url) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [id, b.title, b.description || null, b.workType, b.workArea, b.detailedLocation, b.jobDate, b.startTime, b.endTime, b.paymentAmount, b.paymentType, b.onSpotPayment !== false, b.workersRequired, b.requiredSkills || null, b.contactPhone, b.contactEmail || null, b.locationPhotoUrl || null]);
+    const [x] = await pool.query(`INSERT INTO catering_jobs (owner_id,title,description,work_type,work_area,detailed_location,job_date,start_time,end_time,payment_amount,payment_type,is_on_spot_payment,workers_required,required_skills,contact_phone,contact_email,location_photo_url,apply_deadline) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [id, b.title, b.description || null, b.workType, b.workArea, b.detailedLocation, b.jobDate, b.startTime, b.endTime, b.paymentAmount, b.paymentType, b.onSpotPayment !== false, b.workersRequired, b.requiredSkills || null, b.contactPhone, b.contactEmail || null, b.locationPhotoUrl || null, b.applyDeadline || null]);
     const [r] = await pool.query(`${jobSql} WHERE j.id=?`, [x.insertId]);
     ok(res, job(r[0], true), 'Job posted successfully!');
   } catch (e) { next(e); }
@@ -411,9 +417,9 @@ app.get('/api/owner/jobs', auth, guard('ROLE_OWNER'), async (req, res, next) => 
   try {
     const oid = await ownerId(req);
     const [r] = await pool.query(`${jobSql} WHERE j.owner_id=? ORDER BY j.created_at DESC`, [oid]);
-    // Enrich each job with canDelete flag (true only if at least one ACCEPTED application exists)
     const jobIds = r.map(x => x.id);
     let acceptedMap = {};
+    let cancellationMap = {};
     if (jobIds.length > 0) {
       const placeholders = jobIds.map(() => '?').join(',');
       const [acceptedRows] = await pool.query(
@@ -421,8 +427,61 @@ app.get('/api/owner/jobs', auth, guard('ROLE_OWNER'), async (req, res, next) => 
         jobIds
       );
       acceptedRows.forEach(row => { acceptedMap[row.job_id] = row.cnt > 0; });
+
+      const [delRows] = await pool.query(
+        `SELECT job_id, COUNT(*) cnt FROM job_deletion_requests WHERE job_id IN (${placeholders}) AND status='PENDING' GROUP BY job_id`,
+        jobIds
+      );
+      delRows.forEach(row => { cancellationMap[row.job_id] = row.cnt > 0; });
     }
-    ok(res, r.map(x => ({...job(x, true), canDelete: !!acceptedMap[x.id]})));
+    // Compute canDelete per job based on 3 scenarios
+    const now = new Date();
+    ok(res, r.map(x => {
+      const hasAccepted = !!acceptedMap[x.id];
+      const hasPendingCancel = !!cancellationMap[x.id];
+      const jobEnd = new Date(`${x.job_date}T${x.end_time || '23:59:59'}`);
+      const timeCrossed = now > jobEnd;
+
+      const deadlinePassed = !!(x.apply_deadline && new Date(x.apply_deadline) <= now);
+      // canDelete = (no one hired) OR (time crossed) OR (deadline passed) OR (cancellation requested)
+      const canDelete = !hasAccepted || timeCrossed || deadlinePassed || hasPendingCancel;
+      return {...job(x, true), canDelete, hasPendingDeletionRequest: hasPendingCancel};
+    }));
+  } catch (e) { next(e); }
+});
+
+app.get('/api/owner/jobs/closed', auth, guard('ROLE_OWNER'), async (req, res, next) => {
+  try {
+    const oid = await ownerId(req);
+    // Closed jobs = jobs where apply_deadline has passed OR status is CANCELLED/COMPLETED/FILLED
+    const [r] = await pool.query(
+      `${jobSql} WHERE j.owner_id=? AND (j.status IN ('CANCELLED','COMPLETED') OR (j.apply_deadline IS NOT NULL AND j.apply_deadline <= NOW())) ORDER BY j.updated_at DESC`,
+      [oid]
+    );
+    if (r.length === 0) return ok(res, []);
+
+    const jobIds = r.map(x => x.id);
+    const placeholders = jobIds.map(() => '?').join(',');
+
+    // Get all applicants for these jobs with their details
+    const [apps] = await pool.query(
+      `${appSql} WHERE j.id IN (${placeholders}) ORDER BY j.id, a.applied_at ASC`,
+      jobIds
+    );
+
+    // Group applications by job
+    const appsByJob = {};
+    apps.forEach(a => {
+      if (!appsByJob[a.job_id]) appsByJob[a.job_id] = [];
+      appsByJob[a.job_id].push(application(a, true));
+    });
+
+    ok(res, r.map(x => {
+      const j = job(x, true);
+      j.applicants = appsByJob[x.id] || [];
+      j.isDeadlinePassed = !!(x.apply_deadline && new Date(x.apply_deadline) <= new Date());
+      return j;
+    }));
   } catch (e) { next(e); }
 });
 
@@ -438,8 +497,8 @@ app.get('/api/owner/jobs/:id', auth, guard('ROLE_OWNER'), async (req, res, next)
 app.put('/api/owner/jobs/:id', auth, guard('ROLE_OWNER'), async (req, res, next) => {
   try {
     const b = req.body;
-    await pool.query('UPDATE catering_jobs SET title=?,description=?,work_type=?,work_area=?,detailed_location=?,job_date=?,start_time=?,end_time=?,payment_amount=?,payment_type=?,is_on_spot_payment=?,workers_required=?,required_skills=?,contact_phone=?,contact_email=?,location_photo_url=? WHERE id=? AND owner_id=?',
-      [b.title, b.description, b.workType, b.workArea, b.detailedLocation, b.jobDate, b.startTime, b.endTime, b.paymentAmount, b.paymentType, b.onSpotPayment, b.workersRequired, b.requiredSkills, b.contactPhone, b.contactEmail, b.locationPhotoUrl || null, req.params.id, await ownerId(req)]);
+    await pool.query('UPDATE catering_jobs SET title=?,description=?,work_type=?,work_area=?,detailed_location=?,job_date=?,start_time=?,end_time=?,payment_amount=?,payment_type=?,is_on_spot_payment=?,workers_required=?,required_skills=?,contact_phone=?,contact_email=?,location_photo_url=?,apply_deadline=? WHERE id=? AND owner_id=?',
+      [b.title, b.description, b.workType, b.workArea, b.detailedLocation, b.jobDate, b.startTime, b.endTime, b.paymentAmount, b.paymentType, b.onSpotPayment, b.workersRequired, b.requiredSkills, b.contactPhone, b.contactEmail, b.locationPhotoUrl || null, b.applyDeadline || null, req.params.id, await ownerId(req)]);
     const [r] = await pool.query(`${jobSql} WHERE j.id=?`, [req.params.id]);
     ok(res, job(r[0], true), 'Job updated successfully');
   } catch (e) { next(e); }
@@ -450,19 +509,139 @@ app.delete('/api/owner/jobs/:id', auth, guard('ROLE_OWNER'), async (req, res, ne
     const oid = await ownerId(req);
     const data = await transaction(async c => {
       // 1. Verify job exists and belongs to this owner
-      const [[job]] = await c.query('SELECT id, status FROM catering_jobs WHERE id=? AND owner_id=? FOR UPDATE', [req.params.id, oid]);
-      if (!job) throw Object.assign(new Error('Job not found'), {status: 404});
+      const [[jobRow]] = await c.query('SELECT id, status, job_date, end_time FROM catering_jobs WHERE id=? AND owner_id=? FOR UPDATE', [req.params.id, oid]);
+      if (!jobRow) throw Object.assign(new Error('Job not found'), {status: 404});
 
-      // 2. Check if at least one application is ACCEPTED
-      const [[acceptedCount]] = await c.query("SELECT COUNT(*) count FROM job_applications WHERE job_id=? AND status='ACCEPTED'", [job.id]);
-      if (acceptedCount.count === 0) {
-        throw Object.assign(new Error('You can delete this job only after accepting at least one student application.'), {status: 400});
+      // 2. Find all hired (ACCEPTED) students
+      const [acceptedApps] = await c.query(
+        `SELECT a.id, a.student_id, su.full_name student_name
+         FROM job_applications a
+         JOIN student_profiles sp ON sp.id=a.student_id
+         JOIN users su ON su.id=sp.user_id
+         WHERE a.job_id=? AND a.status='ACCEPTED'`,
+        [jobRow.id]
+      );
+
+      if (acceptedApps.length === 0) {
+        // CASE A: No student hired → delete immediately
+        await c.query('DELETE FROM catering_jobs WHERE id=? AND owner_id=?', [jobRow.id, oid]);
+        return {deleted: true};
       }
 
-      // 3. Delete the job (CASCADE handles applications and payment records)
-      await c.query('DELETE FROM catering_jobs WHERE id=? AND owner_id=?', [job.id, oid]);
+      // CASE B: Student(s) hired → check for existing pending request
+      const [[existingPending]] = await c.query(
+        "SELECT COUNT(*) cnt FROM job_deletion_requests WHERE job_id=? AND status='PENDING'",
+        [jobRow.id]
+      );
+      if (existingPending.cnt > 0) {
+        throw Object.assign(new Error('A deletion request is already waiting for the hired student(s) to respond.'), {status: 400});
+      }
+
+      // Create deletion request for EACH hired student
+      for (const app of acceptedApps) {
+        await c.query(
+          'INSERT INTO job_deletion_requests (job_id, owner_id, student_id) VALUES (?,?,?)',
+          [jobRow.id, oid, app.student_id]
+        );
+        // Notify the hired student
+        await c.query(
+          "INSERT INTO notifications (recipient_id,title,message,type,related_entity_id) VALUES (?,?,?,?,?)",
+          [app.student_id, 'Job Deletion Request',
+           `The owner wants to delete the job you were hired for. Do you want to approve this request?`,
+           'JOB_DELETION_REQUEST', null]
+        );
+      }
+      return {deleted: false, requestCreated: true, hiredStudentCount: acceptedApps.length};
     });
-    ok(res, null, 'Job deleted successfully');
+    if (data.deleted) {
+      ok(res, data, 'Job deleted successfully');
+    } else {
+      ok(res, data, 'Deletion request sent to the hired student(s).');
+    }
+  } catch (e) { next(e); }
+});
+
+// ─── STUDENT JOB DELETION REQUESTS ──────────────────────────────────────────
+
+app.get('/api/student/deletion-requests', auth, guard('ROLE_STUDENT'), async (req, res, next) => {
+  try {
+    const [[sp]] = await pool.query('SELECT id FROM student_profiles WHERE user_id=?', [req.user.id]);
+    if (!sp) return ok(res, []);
+    const [rows] = await pool.query(
+      `SELECT dr.*, j.title job_title, j.work_area, j.job_date, j.start_time, j.end_time,
+              o.catering_name, u.full_name owner_name
+       FROM job_deletion_requests dr
+       JOIN catering_jobs j ON j.id=dr.job_id
+       JOIN owner_profiles o ON o.id=dr.owner_id
+       JOIN users u ON u.id=o.user_id
+       WHERE dr.student_id=?
+       ORDER BY dr.created_at DESC`,
+      [sp.id]
+    );
+    ok(res, rows.map(r => ({
+      id: r.id, jobId: r.job_id, ownerId: r.owner_id,
+      status: r.status, createdAt: r.created_at, respondedAt: r.responded_at,
+      jobTitle: r.job_title, workArea: r.work_area,
+      jobDate: r.job_date, startTime: r.start_time, endTime: r.end_time,
+      cateringName: r.catering_name, ownerName: r.owner_name
+    })));
+  } catch (e) { next(e); }
+});
+
+app.post('/api/student/deletion-requests/:id/accept', auth, guard('ROLE_STUDENT'), async (req, res, next) => {
+  try {
+    const [[sp]] = await pool.query('SELECT id FROM student_profiles WHERE user_id=?', [req.user.id]);
+    if (!sp) return fail(res, 404, 'Student profile not found');
+    const data = await transaction(async c => {
+      // 1. Verify request exists, belongs to this student, and is PENDING
+      const [[reqRow]] = await c.query(
+        'SELECT * FROM job_deletion_requests WHERE id=? AND student_id=? AND status=? FOR UPDATE',
+        [req.params.id, sp.id, 'PENDING']
+      );
+      if (!reqRow) throw Object.assign(new Error('This deletion request is no longer available.'), {status: 404});
+
+      // 2. Mark request as ACCEPTED
+      await c.query("UPDATE job_deletion_requests SET status='ACCEPTED',responded_at=NOW() WHERE id=?", [reqRow.id]);
+
+      // 3. Delete the job (CASCADE handles applications, payments, other deletion requests)
+      await c.query('DELETE FROM catering_jobs WHERE id=?', [reqRow.job_id]);
+
+      // 4. Notify the owner
+      await c.query(
+        "INSERT INTO notifications (recipient_id,title,message,type,related_entity_id) VALUES (?,?,?,?,?)",
+        [reqRow.owner_id, 'Deletion Request Accepted',
+         'The hired student accepted your job deletion request. The job has been deleted.',
+         'JOB_DELETION_ACCEPTED', reqRow.id]
+      );
+    });
+    ok(res, data, 'Request accepted. The job has been deleted.');
+  } catch (e) { next(e); }
+});
+
+app.post('/api/student/deletion-requests/:id/reject', auth, guard('ROLE_STUDENT'), async (req, res, next) => {
+  try {
+    const [[sp]] = await pool.query('SELECT id FROM student_profiles WHERE user_id=?', [req.user.id]);
+    if (!sp) return fail(res, 404, 'Student profile not found');
+    const data = await transaction(async c => {
+      // 1. Verify request exists, belongs to this student, and is PENDING
+      const [[reqRow]] = await c.query(
+        'SELECT * FROM job_deletion_requests WHERE id=? AND student_id=? AND status=? FOR UPDATE',
+        [req.params.id, sp.id, 'PENDING']
+      );
+      if (!reqRow) throw Object.assign(new Error('This deletion request is no longer available.'), {status: 404});
+
+      // 2. Mark as REJECTED
+      await c.query("UPDATE job_deletion_requests SET status='REJECTED',responded_at=NOW() WHERE id=?", [reqRow.id]);
+
+      // 3. Notify the owner
+      await c.query(
+        "INSERT INTO notifications (recipient_id,title,message,type,related_entity_id) VALUES (?,?,?,?,?)",
+        [reqRow.owner_id, 'Deletion Request Rejected',
+         'The hired student rejected your job deletion request. The job remains active.',
+         'JOB_DELETION_REJECTED', reqRow.id]
+      );
+    });
+    ok(res, data, 'Request rejected. The job remains active.');
   } catch (e) { next(e); }
 });
 
