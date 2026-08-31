@@ -316,6 +316,7 @@ const App = {
             <div class="mb-1"><i class="bi bi-geo-alt-fill text-danger me-1"></i><strong>Area:</strong> ${App.escapeHtml(job.workArea)}</div>
             <div class="mb-1"><i class="bi bi-calendar3 text-primary me-1"></i><strong>Date:</strong> ${App.formatDate(job.jobDate)}</div>
             <div><i class="bi bi-clock text-primary me-1"></i><strong>Time:</strong> ${App.formatTime(job.startTime)} - ${App.formatTime(job.endTime)}</div>
+            ${job.applyDeadline ? `<div class="${new Date(job.applyDeadline) < new Date() ? 'text-danger fw-semibold' : 'text-warning'}"><i class="bi bi-hourglass-split me-1"></i><strong>Apply by:</strong> ${App.formatDate(job.applyDeadline)} ${App.formatTime(job.applyDeadline)}${new Date(job.applyDeadline) < new Date() ? ' (Expired)' : ''}</div>` : ''}
           </div>
 
           <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center mb-3">
@@ -410,6 +411,13 @@ const App = {
               </div>
             </div>
           </div>
+
+          ${job.applyDeadline ? `
+          <div class="alert ${new Date(job.applyDeadline) < new Date() ? 'alert-danger' : 'alert-warning'} d-flex align-items-center py-2 mb-3" style="font-size: 0.85rem;">
+            <i class="bi bi-hourglass-split fs-5 me-2"></i>
+            <div><strong>Application Deadline:</strong> ${App.formatDate(job.applyDeadline)} at ${App.formatTime(job.applyDeadline)}${new Date(job.applyDeadline) < new Date() ? ' — <strong>Applications are closed</strong>' : ''}</div>
+          </div>
+          ` : ''}
 
           <div class="mb-3">
             <h6 class="fw-bold">Job Description & Tasks:</h6>
