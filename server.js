@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const {pool, initializeDatabase, transaction} = require('./server/db');
 const chatRouter = require('./server/chat');
+const razorpayRouter = require('./server/razorpay');
 const multer = require('multer');
 
 // File upload config
@@ -44,6 +45,13 @@ const guard = (...roles) => (req, res, next) => req.user && roles.includes(req.u
 // Wire up auth before DELETE on reports
 app.use('/api/reports/:id', (req, res, next) => req.method === 'DELETE' ? auth(req, res, () => guard('ROLE_STUDENT')(req, res, next)) : next());
 app.use('/api/chat', auth, chatRouter);
+// Razorpay public key endpoint (no auth required)
+app.get('/api/public/razorpay-key', (req, res) => {
+  const keyId = process.env.RAZORPAY_KEY_ID || '';
+  ok(res, {apiKey: keyId, configured: !!keyId});
+});
+// Wire up Razorpay authenticated routes
+app.use(auth, razorpayRouter);
 
 async function auth(req, res, next) {
   try {
@@ -1050,6 +1058,34 @@ app.delete('/api/account', auth, async (req, res, next) => {
 // ─── STATIC FILES & ERROR HANDLING ───────────────────────────────────────────
 
 app.use('/uploads', express.static(uploadsDir));
+// Razorpay webhook needs raw body - mount before JSON parser for this specific route
+app.post('/api/razorpay/webhook', express.raw({type: 'application/json'}), async (req, res) => {
+  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  try {
+    if (webhookSecret) {
+      const signature = req.headers['x-razorpay-signature'];
+      const body = typeof req.body === 'string' ? req.body : req.body.toString();
+      const expectedSig = crypto.createHmac('sha256', webhookSecret).update(body).digest('hex');
+      if (signature !== expectedSig) return res.status(400).json({message: 'Invalid signature'});
+    }
+    const event = JSON.parse(typeof req.body === 'string' ? req.body : req.body.toString());
+    console.log('[RAZORPAY] Webhook:', event.event);
+    if (event.event === 'payment.captured') {
+      const p = event.payload.payment.entity;
+      const [[rec]] = await pool.query("SELECT * FROM payment_records WHERE razorpay_order_id=? AND payment_status!='SUCCESS' LIMIT 1", [p.order_id]);
+      if (rec) {
+        await transaction(async c => {
+          await c.query("UPDATE payment_records SET razorpay_payment_id=COALESCE(?,razorpay_payment_id),payment_status='SUCCESS',payment_method=?,confirmed_paid_at=NOW() WHERE id=? AND payment_status!='SUCCESS'", [p.id, p.method, rec.id]);
+          await c.query("UPDATE job_applications SET payment_status='SUCCESS',payment_confirmation_date=NOW() WHERE id=? AND payment_status!='SUCCESS'", [rec.application_id]);
+        });
+      }
+    } else if (event.event === 'payment.failed') {
+      const p = event.payload.payment.entity;
+      await pool.query("UPDATE payment_records SET payment_status='FAILED' WHERE razorpay_order_id=? AND payment_status='CREATED'", [p.order_id]);
+    }
+    res.json({status: 'ok'});
+  } catch (e) { console.error('[RAZORPAY] Webhook error:', e.message); res.json({status: 'ok'}); }
+});
 app.use(express.static(staticDir));
 app.get('*', (req, res) => res.sendFile(path.join(staticDir, 'index.html')));
 app.use((e, req, res, next) => { console.error(e); fail(res, e.status || 500, e.status ? e.message : 'Internal server error'); });

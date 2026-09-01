@@ -256,8 +256,11 @@ const Student = {
               </div>
 
               <div class="d-flex gap-2 flex-wrap">
-                <button class="btn btn-sm btn-primary-custom flex-grow-1" onclick="App.openConfirmPaymentModal(${app.id}, '${App.escapeHtml(app.jobTitle)}', ${app.paymentAmount})">
-                  <i class="bi bi-cash-stack me-1"></i>Confirm Payment
+                <button class="btn btn-sm btn-success flex-grow-1" onclick="Student.openRazorpayPayModal(${app.id}, '${App.escapeHtml(app.jobTitle)}', '${App.escapeHtml(app.ownerName || app.cateringName)}', ${app.paymentAmount})">
+                  <i class="bi bi-credit-card me-1"></i>Pay Online
+                </button>
+                <button class="btn btn-sm btn-outline-success" onclick="App.openConfirmPaymentModal(${app.id}, '${App.escapeHtml(app.jobTitle)}', ${app.paymentAmount})">
+                  <i class="bi bi-cash-stack me-1"></i>On-Spot
                 </button>
                 <button class="btn btn-sm btn-outline-danger" onclick="App.openDisputeModal(${app.jobId}, ${app.id}, '${App.escapeHtml(app.jobTitle)}', ${app.paymentAmount})">
                   <i class="bi bi-exclamation-triangle me-1"></i>Dispute
@@ -442,7 +445,9 @@ const Student = {
         return;
       }
 
-      container.innerHTML = payments.map(pay => `
+      let rpMap = {};
+      try { const rps = await Student.loadRazorpayTransactions(); rps.forEach(t => { rpMap[t.applicationId] = t; }); } catch(e) {}
+      container.innerHTML = payments.map(pay => { const rp = rpMap[pay.applicationId] || {}; const isOnline = !!(rp.razorpayPaymentId || rp.paymentMethod); return `
         <tr>
           <td>
             <div class="fw-bold">${App.escapeHtml(pay.jobTitle)}</div>
@@ -453,16 +458,21 @@ const Student = {
             <small class="text-muted">${App.escapeHtml(pay.workArea || '')}</small>
           </td>
           <td class="fw-bold text-success">₹${pay.amount}</td>
-          <td><span class="badge bg-primary-subtle text-primary border">${pay.paymentTypeDisplayName || 'On-Spot'}</span></td>
+          <td><span class="badge bg-primary-subtle text-primary border">${pay.paymentTypeDisplayName || 'On-Spot'}</span>${isOnline ? '<br><span class="badge bg-info text-dark mt-1"><i class="bi bi-credit-card me-1"></i>Online</span>' : ''}</td>
           <td>
-            ${pay.paymentStatus === 'CONFIRMED' ? '<span class="badge bg-success">Confirmed</span>' :
+            ${rp.paymentStatus === 'SUCCESS' || rp.paymentStatus === 'CONFIRMED' ? '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Paid</span>' :
+              rp.paymentStatus === 'CREATED' ? '<span class="badge bg-warning text-dark">Processing</span>' :
+              rp.paymentStatus === 'FAILED' ? '<span class="badge bg-danger">Failed</span>' :
+              pay.paymentStatus === 'CONFIRMED' ? '<span class="badge bg-success">Confirmed</span>' :
               pay.paymentStatus === 'PAID' ? '<span class="badge bg-info">Marked Paid</span>' :
               pay.paymentStatus === 'DISPUTED' ? '<span class="badge bg-danger">Disputed</span>' :
-              '<span class="badge bg-warning">Pending</span>'}
+              '<span class="badge bg-warning text-dark">Pending</span>'}
+            ${rp.razorpayPaymentId ? `<br><small class="text-muted">RP: ${rp.razorpayPaymentId.substring(0, 20)}</small>` : ''}
+            ${rp.environment ? '<br><span class="badge bg-warning-subtle text-warning border border-warning-subtle small mt-1"><i class="bi bi-info-circle me-1"></i>TEST</span>' : ''}
           </td>
           <td><small class="text-muted">${App.formatDate(pay.confirmedPaidAt || pay.markedPaidAt || pay.createdAt)}</small></td>
         </tr>
-      `).join('');
+      `}).join('');
     } catch (err) {
       container.innerHTML = `<tr><td colspan="6" class="text-center p-3 text-danger">Failed to load payment history</td></tr>`;
     }
@@ -539,5 +549,137 @@ const Student = {
     });
 
     this._renderAvailableJobs(filtered);
+  },
+
+  // ─── RAZORPAY PAYMENT ──────────────────────────────────────────────────
+
+  async openRazorpayPayModal(paymentRecordId, jobTitle, ownerName, amount) {
+    document.getElementById('rpPayRecordId').value = paymentRecordId;
+    document.getElementById('rpPayJobTitle').textContent = jobTitle;
+    document.getElementById('rpPayOwner').textContent = ownerName;
+    document.getElementById('rpPayAmount').textContent = '\u20B9' + Number(amount).toLocaleString('en-IN');
+    document.getElementById('rpPayStatus').style.display = 'none';
+    document.getElementById('rpPayNowBtn').style.display = '';
+    document.getElementById('rpPayNowBtn').disabled = false;
+    new bootstrap.Modal(document.getElementById('razorpayPayModal')).show();
+  },
+
+  async initiateRazorpayPayment() {
+    const btn = document.getElementById('rpPayNowBtn');
+    const status = document.getElementById('rpPayStatus');
+    const recordId = document.getElementById('rpPayRecordId').value;
+    if (!recordId) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating order...';
+    status.style.display = 'none';
+
+    try {
+      // 1. Create order on server
+      const res = await fetch('/api/student/razorpay/create-order', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API.getToken()},
+        body: JSON.stringify({paymentRecordId: Number(recordId)})
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to create order');
+
+      // 2. Fetch Razorpay key
+      const keyRes = await fetch('/api/public/razorpay-key', {
+        headers: {'Authorization': 'Bearer ' + API.getToken()}
+      });
+      const keyData = await keyRes.json();
+      if (!keyData.data || !keyData.data.keyId) throw new Error('Razorpay is not configured');
+
+      // 3. Open Razorpay Checkout
+      const options = {
+        key: keyData.data.keyId,
+        amount: data.data.amount,
+        currency: data.data.currency || 'INR',
+        name: 'PartTime Job Platform',
+        description: 'Payment for: ' + (data.data.jobTitle || 'Job'),
+        order_id: data.data.orderId,
+        handler: async function(response) {
+          // 4. Verify payment on server
+          status.style.display = '';
+          btn.style.display = 'none';
+          try {
+            const verifyRes = await fetch('/api/student/razorpay/verify', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API.getToken()},
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                paymentRecordId: Number(recordId)
+              })
+            });
+            const verifyData = await verifyRes.json();
+            if (!verifyRes.ok) throw new Error(verifyData.message || 'Verification failed');
+
+            // Success!
+            bootstrap.Modal.getInstance(document.getElementById('razorpayPayModal')).hide();
+            document.getElementById('rpSuccessDetails').innerHTML =
+              '<div>Payment ID: <code>' + response.razorpay_payment_id + '</code></div>' +
+              '<div>Amount: <strong>\u20B9' + (data.data.amount / 100).toLocaleString('en-IN') + '</strong></div>';
+            new bootstrap.Modal(document.getElementById('razorpaySuccessModal')).show();
+
+            // Refresh the page data
+            if (typeof Student !== 'undefined' && Student.loadAcceptedJobs) Student.loadAcceptedJobs();
+            if (typeof Student !== 'undefined' && Student.loadPayments) Student.loadPayments();
+            App.toast('Payment successful!', 'success');
+          } catch (e) {
+            App.toast('Payment succeeded but verification failed: ' + e.message + '. Contact support.', 'warning');
+          }
+        },
+        prefill: {},
+        theme: {color: '#10b981'},
+        modal: {
+          ondismiss: async function() {
+            // User cancelled - mark as cancelled on server
+            btn.style.display = '';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-lock-fill me-2"></i>Pay Now';
+            status.style.display = 'none';
+            try {
+              await fetch('/api/student/razorpay/cancel', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API.getToken()},
+                body: JSON.stringify({paymentRecordId: Number(recordId)})
+              });
+            } catch (e) { /* ignore */ }
+          }
+        }
+      };
+
+      const rzp = new Razorpay(options);
+      rzp.on('payment.failed', function(response) {
+        App.toast('Payment failed: ' + (response.error ? response.error.description : 'Unknown error'), 'danger');
+        btn.style.display = '';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-lock-fill me-2"></i>Pay Now';
+        status.style.display = 'none';
+      });
+      rzp.open();
+
+    } catch (e) {
+      App.toast(e.message, 'danger');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-lock-fill me-2"></i>Pay Now';
+    }
+  },
+
+  async loadRazorpayTransactions() {
+    try {
+      const res = await fetch('/api/student/razorpay/transactions', {
+        headers: {'Authorization': 'Bearer ' + API.getToken()}
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      return data.data || [];
+    } catch (e) {
+      console.error('Failed to load transactions:', e);
+      return [];
+    }
   }
 };

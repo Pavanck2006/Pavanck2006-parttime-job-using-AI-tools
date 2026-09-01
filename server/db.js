@@ -51,6 +51,12 @@ async function initializeDatabase() {
       INDEX idx_delreq_status (status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
   } catch (e) { if (e.errno !== 1050) throw e; }
+  // Migration: add Razorpay columns to payment_records
+  try { await pool.query('ALTER TABLE payment_records ADD COLUMN razorpay_order_id VARCHAR(100) NULL'); } catch (e) { if (e.errno !== 1060) throw e; }
+  try { await pool.query('ALTER TABLE payment_records ADD COLUMN razorpay_payment_id VARCHAR(100) NULL'); } catch (e) { if (e.errno !== 1060) throw e; }
+  try { await pool.query('ALTER TABLE payment_records ADD COLUMN razorpay_signature VARCHAR(255) NULL'); } catch (e) { if (e.errno !== 1060) throw e; }
+  try { await pool.query("ALTER TABLE payment_records ADD COLUMN environment VARCHAR(20) DEFAULT 'TEST'"); } catch (e) { if (e.errno !== 1060) throw e; }
+  try { await pool.query('ALTER TABLE payment_records ADD COLUMN payment_method VARCHAR(50) NULL'); } catch (e) { if (e.errno !== 1060) throw e; }
   if (process.env.RUN_SEED !== 'false') {
     const seed = path.join(__dirname, '..', 'src', 'main', 'resources', 'data.sql');
     if (fs.existsSync(seed)) for (const statement of statements(seed)) try { await pool.query(statement); } catch (e) { if (![1062, 1451, 1452].includes(e.errno)) throw e; }

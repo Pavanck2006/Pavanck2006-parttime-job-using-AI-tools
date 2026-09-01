@@ -2042,6 +2042,57 @@
     </div>
   </div>
 
+
+  <!-- 9. RAZORPAY PAY NOW MODAL -->
+  <div class="modal fade" id="razorpayPayModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold"><i class="bi bi-credit-card me-2 text-primary"></i>Pay with Razorpay</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="p-3 rounded mb-3" style="background: var(--color-surface-sunken);">
+            <div class="fw-bold" id="rpPayJobTitle">Job Title</div>
+            <div class="small text-muted" id="rpPayOwner">Owner</div>
+            <div class="fs-3 fw-bold text-primary mt-1" id="rpPayAmount">₹0</div>
+          </div>
+          <div class="d-flex align-items-center gap-2 mb-3 p-2 rounded" style="background: rgba(217,119,6,0.1); border: 1px solid rgba(217,119,6,0.2);">
+            <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+            <small class="fw-semibold text-warning">TEST MODE — No real money will be charged</small>
+          </div>
+          <div id="rpPayStatus" class="text-center py-3" style="display:none;">
+            <div class="spinner-border text-primary mb-2" role="status"></div>
+            <div class="small text-muted">Processing payment...</div>
+          </div>
+          <button type="button" id="rpPayNowBtn" class="btn btn-primary-custom w-100 py-2" onclick="Student.initiateRazorpayPayment()">
+            <i class="bi bi-lock-fill me-2"></i>Pay Now
+          </button>
+          <input type="hidden" id="rpPayRecordId">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10. PAYMENT SUCCESS MODAL -->
+  <div class="modal fade" id="razorpaySuccessModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-body text-center py-5">
+          <div class="mb-3"><i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i></div>
+          <h5 class="fw-bold text-success">Payment Successful!</h5>
+          <p class="text-muted mb-2">Your payment has been verified and confirmed.</p>
+          <div class="d-flex align-items-center justify-content-center gap-2 mb-3 p-2 rounded" style="background: rgba(217,119,6,0.1); border: 1px solid rgba(217,119,6,0.2);">
+            <i class="bi bi-info-circle-fill text-warning"></i>
+            <small class="fw-semibold text-warning">TEST MODE — No real money transferred</small>
+          </div>
+          <div class="small text-muted mb-3" id="rpSuccessDetails"></div>
+          <button type="button" class="btn btn-primary-custom px-4" data-bs-dismiss="modal">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST CONTAINER -->
   <div class="toast-container toast-container-custom" id="toastContainer"></div>
 
@@ -2062,6 +2113,7 @@
       <small>Profile</small>
     </a>
   </nav>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <!-- Footer -->
