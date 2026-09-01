@@ -2,6 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const Razorpay = require('razorpay');
 const {pool, transaction} = require('./db');
+const {createOrUpdateTransaction, updateTransactionStatus} = require('./transactions');
 
 const router = express.Router();
 
@@ -269,7 +270,7 @@ router.post('/api/razorpay/webhook', express.raw({type: 'application/json'}), as
   }
 });
 
-// ─── GET /api/student/razorpay/transactions ───────────────────────────────────
+// ─── GET /api/student/razorpay/transactions ───────────────────────────────────────────────────────
 // Student transaction history with Razorpay details
 router.get('/api/student/razorpay/transactions', async (req, res) => {
   try {
@@ -302,7 +303,7 @@ router.get('/api/student/razorpay/transactions', async (req, res) => {
   }
 });
 
-// ─── GET /api/owner/razorpay/transactions ─────────────────────────────────────
+// ─── GET /api/owner/razorpay/transactions ─────────────────────────────────────────────────────────
 // Owner transaction history
 router.get('/api/owner/razorpay/transactions', async (req, res) => {
   try {

@@ -471,7 +471,7 @@ async updateProfile(e) {
                       
                       ${(app.status === 'ACCEPTED' || app.status === 'COMPLETED') && app.paymentStatus !== 'PAID' && app.paymentStatus !== 'CONFIRMED' ? `
                         <button class="btn btn-outline-success" onclick="Owner.markPaymentPaid(${app.id}, ${app.paymentAmount})">
-                          <i class="bi bi-cash-stack"></i> Mark Paid
+                          <i class="bi bi-cash-stack"></i> Pay Student
                         </button>
                       ` : ''}
                     </div>
@@ -552,12 +552,12 @@ async updateProfile(e) {
   },
 
   async markPaymentPaid(appId, amount) {
-    const notes = prompt(`Mark ₹${amount} as PAID to student. Enter payment notes (optional, e.g. "Cash On-Spot"):`, 'Paid cash on-spot');
+    const notes = prompt(`Record payment of ₹${amount} to this student. Enter payment notes (optional, e.g. "Cash on spot" or "Bank transfer"):`, 'Paid to student by owner');
     if (notes === null) return;
 
     try {
       await API.owner.markPaymentPaid(appId, notes);
-      App.showToast('Payment marked as PAID. Student notified to confirm receipt.', 'success');
+      App.showToast('Owner payment recorded. The student has been notified.', 'success');
       if (this.currentActiveJobId) {
         await this.openApplicantsModal(this.currentActiveJobId, document.getElementById('applicantsJobTitle').innerText);
       }

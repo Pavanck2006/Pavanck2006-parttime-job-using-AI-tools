@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const {pool, initializeDatabase, transaction} = require('./server/db');
 const chatRouter = require('./server/chat');
 const razorpayRouter = require('./server/razorpay');
+const {createOrUpdateTransaction, updateTransactionStatus, getTransactionDetails, getTransactionsList, getTransactionSummary} = require('./server/transactions');
 const multer = require('multer');
 
 // File upload config
@@ -50,8 +51,6 @@ app.get('/api/public/razorpay-key', (req, res) => {
   const keyId = process.env.RAZORPAY_KEY_ID || '';
   ok(res, {apiKey: keyId, configured: !!keyId});
 });
-// Wire up Razorpay authenticated routes
-app.use(auth, razorpayRouter);
 
 async function auth(req, res, next) {
   try {
@@ -315,9 +314,10 @@ app.get('/api/student/dashboard', auth, guard('ROLE_STUDENT'), async (req, res, 
       (SELECT COUNT(*) FROM job_applications a JOIN student_profiles s ON s.id=a.student_id WHERE s.user_id=? AND a.status='ACCEPTED') acceptedApplicationsCount,
       (SELECT COUNT(*) FROM job_applications a JOIN student_profiles s ON s.id=a.student_id WHERE s.user_id=? AND a.status='APPLIED') appliedJobsCount,
       (SELECT COUNT(*) FROM job_applications a JOIN student_profiles s ON s.id=a.student_id WHERE s.user_id=? AND a.work_completion_status='COMPLETED') completedJobsCount,
-      (SELECT COALESCE(SUM(payment_amount),0) FROM job_applications a JOIN student_profiles s ON s.id=a.student_id WHERE s.user_id=? AND a.payment_status='CONFIRMED') totalEarnings,
+      (SELECT COALESCE(SUM(amount),0) FROM payment_records p JOIN student_profiles s ON s.id=p.student_id WHERE s.user_id=? AND p.payment_status='PAID') totalEarnings,
+      (SELECT COALESCE(SUM(amount),0) FROM payment_records p JOIN student_profiles s ON s.id=p.student_id WHERE s.user_id=? AND p.payment_status IN ('PENDING','INITIATED')) pendingEarnings,
       (SELECT COUNT(*) FROM notifications WHERE recipient_id=? AND is_read=FALSE) unreadNotificationsCount`,
-      [req.user.id, req.user.id, req.user.id, req.user.id, req.user.id, req.user.id]);
+      [req.user.id, req.user.id, req.user.id, req.user.id, req.user.id, req.user.id, req.user.id, req.user.id]);
     ok(res, r[0]);
   } catch (e) { next(e); }
 });
@@ -367,32 +367,62 @@ app.delete('/api/student/applications/:id', auth, guard('ROLE_STUDENT'), async (
   } catch (e) { next(e); }
 });
 
-app.put('/api/student/applications/:id/confirm-payment', auth, guard('ROLE_STUDENT'), async (req, res, next) => {
+// ─── STUDENT EARNINGS & TRANSACTION HISTORY ────────────────────────────────
+
+// Get student earnings summary (total earned, pending, this month, etc.)
+app.get('/api/student/earnings', auth, guard('ROLE_STUDENT'), async (req, res, next) => {
   try {
-    await transaction(async c => {
-      const [r] = await c.query("UPDATE payment_records p JOIN student_profiles s ON s.id=p.student_id SET p.payment_status='CONFIRMED',p.confirmed_paid_at=NOW(),p.notes=? WHERE p.application_id=? AND s.user_id=?",
-        [req.body.notes || null, req.params.id, req.user.id]);
-      if (!r.affectedRows) throw Object.assign(new Error('Payment record not found'), {status: 404});
-      await c.query("UPDATE job_applications SET payment_status='CONFIRMED',payment_confirmation_date=NOW() WHERE id=?", [req.params.id]);
-    });
-    ok(res, null, 'Payment confirmed successfully!');
+    const [[summary]] = await pool.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN payment_status='PAID' THEN amount ELSE 0 END), 0) totalEarned,
+        COALESCE(SUM(CASE WHEN payment_status='PENDING' THEN amount ELSE 0 END), 0) pendingAmount,
+        COALESCE(SUM(CASE WHEN payment_status='INITIATED' THEN amount ELSE 0 END), 0) processingAmount,
+        COUNT(CASE WHEN payment_status='PAID' THEN 1 END) completedJobs,
+        COUNT(CASE WHEN payment_status IN ('PENDING','INITIATED') THEN 1 END) pendingJobs,
+        COALESCE(SUM(CASE WHEN payment_status='PAID' AND YEAR(marked_paid_at)=YEAR(NOW()) AND MONTH(marked_paid_at)=MONTH(NOW()) THEN amount ELSE 0 END), 0) thisMonthEarnings
+      FROM payment_records p
+      JOIN student_profiles sp ON sp.id=p.student_id
+      WHERE sp.user_id=?
+    `, [req.user.id]);
+    ok(res, summary, 'Earnings summary retrieved');
   } catch (e) { next(e); }
 });
 
-app.get('/api/student/payments', auth, guard('ROLE_STUDENT'), async (req, res, next) => {
+// Get student transaction history (earnings/payments received)
+app.get('/api/student/earnings/transactions', auth, guard('ROLE_STUDENT'), async (req, res, next) => {
   try {
-    const [r] = await pool.query('SELECT p.*,j.title job_title,j.work_area,o.catering_name owner_catering_name FROM payment_records p JOIN catering_jobs j ON j.id=p.job_id JOIN student_profiles s ON s.id=p.student_id JOIN owner_profiles o ON o.id=p.owner_id WHERE s.user_id=? ORDER BY p.created_at DESC', [req.user.id]);
+    const q = req.query;
+    let sql = `SELECT p.*,j.id job_id,j.title job_title,j.work_area,j.job_date,j.work_type,
+               u.full_name owner_name,o.catering_name,
+               a.status application_status,a.work_completion_status
+      FROM payment_records p
+      JOIN catering_jobs j ON j.id=p.job_id
+      JOIN owner_profiles o ON o.id=p.owner_id
+      JOIN users u ON u.id=o.user_id
+      JOIN job_applications a ON a.id=p.application_id
+      JOIN student_profiles sp ON sp.id=p.student_id
+      WHERE sp.user_id=?`, 
+      v = [req.user.id];
+    
+    if (q.status) { sql += ' AND p.payment_status=?'; v.push(q.status); }
+    if (q.fromDate) { sql += ' AND DATE(p.marked_paid_at)>=?'; v.push(q.fromDate); }
+    if (q.toDate) { sql += ' AND DATE(p.marked_paid_at)<=?'; v.push(q.toDate); }
+    if (q.minAmount) { sql += ' AND p.amount>=?'; v.push(q.minAmount); }
+    if (q.maxAmount) { sql += ' AND p.amount<=?'; v.push(q.maxAmount); }
+    
+    sql += ' ORDER BY p.marked_paid_at DESC LIMIT 100';
+    const [r] = await pool.query(sql, v);
+    
     ok(res, r.map(x => ({
       id: x.id, applicationId: x.application_id, jobId: x.job_id,
-      studentId: x.student_id, ownerId: x.owner_id,
-      amount: x.amount, paymentType: x.payment_type,
-      paymentTypeDisplayName: x.payment_type,
+      amount: x.amount, paymentType: x.payment_type, paymentTypeDisplayName: x.payment_type,
       paymentStatus: x.payment_status,
-      markedPaidAt: x.marked_paid_at, confirmedPaidAt: x.confirmed_paid_at,
-      notes: x.notes, createdAt: x.created_at,
-      jobTitle: x.job_title, workArea: x.work_area,
-      ownerCateringName: x.owner_catering_name
-    })));
+      jobTitle: x.job_title, workArea: x.work_area, jobDate: x.job_date,
+      workType: x.work_type, ownerName: x.owner_name, cateringName: x.catering_name,
+      applicationStatus: x.application_status, workCompletionStatus: x.work_completion_status,
+      initiatedAt: x.initiated_at, markedPaidAt: x.marked_paid_at, notes: x.notes,
+      createdAt: x.created_at
+    })), 'Transaction history retrieved');
   } catch (e) { next(e); }
 });
 
@@ -731,27 +761,135 @@ app.put('/api/owner/jobs/:id/complete', auth, guard('ROLE_OWNER'), async (req, r
   } catch (e) { next(e); }
 });
 
-app.put('/api/owner/applications/:id/payment', auth, guard('ROLE_OWNER'), async (req, res, next) => {
+// ─── OWNER PAYMENTS ──────────────────────────────────────────────────────────
+
+// Get pending payments owner needs to make
+app.get('/api/owner/payments/pending', auth, guard('ROLE_OWNER'), async (req, res, next) => {
   try {
-    await transaction(async c => {
-      await c.query("UPDATE payment_records SET payment_status='PAID',marked_paid_at=NOW(),notes=? WHERE application_id=? AND owner_id=?",
-        [req.body.notes || null, req.params.id, await ownerId(req)]);
-      await c.query("UPDATE job_applications SET payment_status='PAID' WHERE id=?", [req.params.id]);
-    });
-    ok(res, null, 'Payment marked as PAID successfully!');
+    const oid = await ownerId(req);
+    const [r] = await pool.query(`SELECT p.*,j.title job_title,j.work_area,j.work_type,j.job_date,
+      su.full_name student_name,su.email student_email,su.phone student_phone,
+      sp.college_name,sp.skills,sp.rating student_rating,sp.total_jobs_completed,
+      a.status application_status,a.work_completion_status
+      FROM payment_records p
+      JOIN catering_jobs j ON j.id=p.job_id
+      JOIN student_profiles sp ON sp.id=p.student_id
+      JOIN users su ON su.id=sp.user_id
+      JOIN job_applications a ON a.id=p.application_id
+      WHERE p.owner_id=? AND p.payment_status IN ('PENDING','INITIATED')
+      ORDER BY p.created_at ASC`, [oid]);
+    ok(res, r.map(x => ({
+      id: x.id, applicationId: x.application_id, jobId: x.job_id,
+      amount: x.amount, paymentType: x.payment_type, paymentStatus: x.payment_status,
+      jobTitle: x.job_title, workArea: x.work_area, workType: x.work_type, jobDate: x.job_date,
+      studentName: x.student_name, studentEmail: x.student_email, studentPhone: x.student_phone,
+      collegeName: x.college_name, skills: x.skills, studentRating: x.student_rating,
+      totalJobsCompleted: x.total_jobs_completed,
+      applicationStatus: x.application_status, workCompletionStatus: x.work_completion_status,
+      createdAt: x.created_at
+    })), 'Pending payments retrieved');
   } catch (e) { next(e); }
 });
 
+// Get payment summary for owner
+app.get('/api/owner/payments/summary', auth, guard('ROLE_OWNER'), async (req, res, next) => {
+  try {
+    const oid = await ownerId(req);
+    const [[summary]] = await pool.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN payment_status='PAID' THEN amount ELSE 0 END), 0) totalPaid,
+        COALESCE(SUM(CASE WHEN payment_status IN ('PENDING','INITIATED') THEN amount ELSE 0 END), 0) totalPending,
+        COUNT(CASE WHEN payment_status='PAID' THEN 1 END) completedPayments,
+        COUNT(CASE WHEN payment_status IN ('PENDING','INITIATED') THEN 1 END) pendingPayments,
+        COALESCE(SUM(CASE WHEN payment_status='PAID' AND YEAR(marked_paid_at)=YEAR(NOW()) AND MONTH(marked_paid_at)=MONTH(NOW()) THEN amount ELSE 0 END), 0) thisMonthPaid
+      FROM payment_records p
+      WHERE p.owner_id=?
+    `, [oid]);
+    ok(res, summary, 'Payment summary retrieved');
+  } catch (e) { next(e); }
+});
+
+// Initiate payment (owner starts the payment process)
+app.put('/api/owner/payments/:id/initiate', auth, guard('ROLE_OWNER'), async (req, res, next) => {
+  try {
+    const oid = await ownerId(req);
+    const [r] = await pool.query("UPDATE payment_records SET payment_status='INITIATED',initiated_at=NOW() WHERE id=? AND owner_id=? AND payment_status='PENDING'",
+      [req.params.id, oid]);
+    if (!r.affectedRows) return fail(res, 400, 'Payment not found or already initiated');
+    
+    // Notify student
+    const [[payment]] = await pool.query('SELECT student_id FROM payment_records WHERE id=?', [req.params.id]);
+    await pool.query(
+      "INSERT INTO notifications (recipient_id,title,message,type,related_entity_id) VALUES (?,?,?,?,?)",
+      [payment.student_id, 'Payment Initiated', 'The owner has initiated your payment and will transfer it soon.', 'PAYMENT_INITIATED', req.params.id]
+    );
+    
+    ok(res, null, 'Owner has initiated payment to student');
+  } catch (e) { next(e); }
+});
+
+// Complete payment (owner marks as paid with details)
+app.put('/api/owner/payments/:id/complete', auth, guard('ROLE_OWNER'), async (req, res, next) => {
+  try {
+    const oid = await ownerId(req);
+    const b = req.body;
+    const data = await transaction(async c => {
+      const [[payment]] = await c.query('SELECT application_id, student_id FROM payment_records WHERE id=? AND owner_id=?',
+        [req.params.id, oid]);
+      if (!payment) throw Object.assign(new Error('Payment not found'), {status: 404});
+      
+      // Update payment record
+      await c.query(
+        "UPDATE payment_records SET payment_status='PAID',marked_paid_at=NOW(),payment_method=?,notes=? WHERE id=?",
+        [b.paymentMethod || 'BANK_TRANSFER', b.notes || null, req.params.id]
+      );
+      
+      // Update job application
+      await c.query("UPDATE job_applications SET payment_status='PAID',payment_confirmation_date=NOW() WHERE id=?",
+        [payment.application_id]
+      );
+      
+      // Notify student of successful payment
+      await c.query(
+        "INSERT INTO notifications (recipient_id,title,message,type,related_entity_id) VALUES (?,?,?,?,?)",
+        [payment.student_id, 'Payment Received', 'You have received payment from the owner for your work.', 'PAYMENT_COMPLETED', req.params.id]
+      );
+      
+      return {paid: true};
+    });
+    
+    ok(res, data, 'Payment to student has been recorded successfully!');
+  } catch (e) { next(e); }
+});
+
+// Owner views all payments (with filters)
 app.get('/api/owner/payments', auth, guard('ROLE_OWNER'), async (req, res, next) => {
   try {
-    const [r] = await pool.query('SELECT p.*,j.title job_title,j.work_area,su.full_name student_name,su.email student_email FROM payment_records p JOIN catering_jobs j ON j.id=p.job_id JOIN student_profiles s ON s.id=p.student_id JOIN users su ON su.id=s.user_id WHERE p.owner_id=? ORDER BY p.created_at DESC', [await ownerId(req)]);
+    const oid = await ownerId(req);
+    const q = req.query;
+    let sql = `SELECT p.*,j.title job_title,j.work_area,su.full_name student_name,su.email student_email
+      FROM payment_records p
+      JOIN catering_jobs j ON j.id=p.job_id
+      JOIN student_profiles s ON s.id=p.student_id
+      JOIN users su ON su.id=s.user_id
+      WHERE p.owner_id=?`, v = [oid];
+    
+    if (q.status) { sql += ' AND p.payment_status=?'; v.push(q.status); }
+    if (q.fromDate) { sql += ' AND DATE(p.marked_paid_at)>=?'; v.push(q.fromDate); }
+    if (q.toDate) { sql += ' AND DATE(p.marked_paid_at)<=?'; v.push(q.toDate); }
+    if (q.minAmount) { sql += ' AND p.amount>=?'; v.push(q.minAmount); }
+    if (q.maxAmount) { sql += ' AND p.amount<=?'; v.push(q.maxAmount); }
+    
+    sql += ' ORDER BY p.created_at DESC LIMIT 100';
+    const [r] = await pool.query(sql, v);
+    
     ok(res, r.map(x => ({
       id: x.id, applicationId: x.application_id, jobId: x.job_id,
       studentId: x.student_id, ownerId: x.owner_id,
       amount: x.amount, paymentType: x.payment_type,
       paymentTypeDisplayName: x.payment_type,
-      paymentStatus: x.payment_status,
-      markedPaidAt: x.marked_paid_at, confirmedPaidAt: x.confirmed_paid_at,
+      paymentStatus: x.payment_status, paymentMethod: x.payment_method,
+      initiatedAt: x.initiated_at, markedPaidAt: x.marked_paid_at,
       notes: x.notes, createdAt: x.created_at,
       jobTitle: x.job_title, workArea: x.work_area,
       studentName: x.student_name, studentEmail: x.student_email
@@ -786,6 +924,59 @@ app.get('/api/owner/complaints', auth, guard('ROLE_OWNER'), async (req, res, nex
   } catch (e) { next(e); }
 });
 
+// ─── ADMIN PAYMENTS ──────────────────────────────────────────────────────────
+
+// Admin views all platform payments
+app.get('/api/admin/payments', auth, guard('ROLE_ADMIN'), async (req, res, next) => {
+  try {
+    const q = req.query;
+    let sql = `SELECT p.*,j.title job_title,j.work_area,
+      su.full_name student_name,su.email student_email,
+      ou.full_name owner_name,ou.email owner_email,o.catering_name
+      FROM payment_records p
+      JOIN catering_jobs j ON j.id=p.job_id
+      JOIN student_profiles sp ON sp.id=p.student_id
+      JOIN users su ON su.id=sp.user_id
+      JOIN owner_profiles o ON o.id=p.owner_id
+      JOIN users ou ON ou.id=o.user_id
+      WHERE 1=1`, v = [];
+    
+    if (q.status) { sql += ' AND p.payment_status=?'; v.push(q.status); }
+    if (q.fromDate) { sql += ' AND DATE(p.marked_paid_at)>=?'; v.push(q.fromDate); }
+    if (q.toDate) { sql += ' AND DATE(p.marked_paid_at)<=?'; v.push(q.toDate); }
+    
+    sql += ' ORDER BY p.created_at DESC LIMIT 200';
+    const [r] = await pool.query(sql, v);
+    
+    ok(res, r.map(x => ({
+      id: x.id, applicationId: x.application_id, jobId: x.job_id,
+      amount: x.amount, paymentType: x.payment_type, paymentStatus: x.payment_status,
+      jobTitle: x.job_title, workArea: x.work_area,
+      studentName: x.student_name, studentEmail: x.student_email,
+      ownerName: x.owner_name, ownerEmail: x.owner_email, cateringName: x.catering_name,
+      markedPaidAt: x.marked_paid_at, createdAt: x.created_at
+    })), 'All payments retrieved');
+  } catch (e) { next(e); }
+});
+
+// Admin payment statistics
+app.get('/api/admin/payments/stats', auth, guard('ROLE_ADMIN'), async (req, res, next) => {
+  try {
+    const [[stats]] = await pool.query(`
+      SELECT
+        COALESCE(SUM(amount), 0) totalTransacted,
+        COALESCE(SUM(CASE WHEN payment_status='PAID' THEN amount ELSE 0 END), 0) totalPaid,
+        COALESCE(SUM(CASE WHEN payment_status IN ('PENDING','INITIATED') THEN amount ELSE 0 END), 0) totalPending,
+        COUNT(*) totalTransactions,
+        COUNT(CASE WHEN payment_status='PAID' THEN 1 END) completedTransactions,
+        COUNT(DISTINCT owner_id) uniqueOwners,
+        COUNT(DISTINCT student_id) uniqueStudents
+      FROM payment_records
+    `);
+    ok(res, stats, 'Payment statistics retrieved');
+  } catch (e) { next(e); }
+});
+
 // ─── ADMIN ───────────────────────────────────────────────────────────────────
 
 app.get('/api/admin/dashboard', auth, guard('ROLE_ADMIN'), async (req, res, next) => {
@@ -799,7 +990,10 @@ app.get('/api/admin/dashboard', auth, guard('ROLE_ADMIN'), async (req, res, next
       (SELECT COUNT(*) FROM job_applications) totalApplicationsCount,
       (SELECT COUNT(*) FROM reports WHERE status='PENDING') pendingDisputesCount,
       (SELECT COUNT(*) FROM users WHERE is_suspended=TRUE) suspendedUsersCount,
-      (SELECT COALESCE(SUM(amount),0) FROM payment_records WHERE payment_status IN ('PAID','CONFIRMED')) totalPlatformPayout`);
+      (SELECT COALESCE(SUM(amount),0) FROM payment_records WHERE payment_status='PAID') totalPaymentsPaid,
+      (SELECT COALESCE(SUM(amount),0) FROM payment_records WHERE payment_status IN ('PENDING','INITIATED')) totalPaymentsPending,
+      (SELECT COUNT(*) FROM payment_records WHERE payment_status='PAID') completedPaymentCount,
+      (SELECT COUNT(*) FROM payment_records WHERE payment_status IN ('PENDING','INITIATED')) pendingPaymentCount`);
     ok(res, r[0]);
   } catch (e) { next(e); }
 });
@@ -859,6 +1053,160 @@ app.delete('/api/admin/jobs/:id', auth, guard('ROLE_ADMIN'), async (req, res, ne
   try {
     await pool.query("UPDATE catering_jobs SET status='CANCELLED' WHERE id=?", [req.params.id]);
     ok(res, null, 'Job deleted/cancelled by admin');
+  } catch (e) { next(e); }
+});
+
+// ─── ADMIN TRANSACTIONS ──────────────────────────────────────────────────────
+
+// Get all transactions with filters, search, and pagination
+app.get('/api/admin/transactions', auth, guard('ROLE_ADMIN'), async (req, res, next) => {
+  try {
+    const filters = {
+      status: req.query.status,
+      environment: req.query.environment || 'TEST',
+      fromDate: req.query.fromDate,
+      toDate: req.query.toDate,
+      searchQuery: req.query.search,
+      limit: req.query.limit || 50,
+      offset: req.query.offset || 0
+    };
+
+    const result = await getTransactionsList(filters);
+    ok(res, result, 'Transactions retrieved');
+  } catch (e) { next(e); }
+});
+
+// Get transaction summary/statistics for admin dashboard
+app.get('/api/admin/transactions/summary', auth, guard('ROLE_ADMIN'), async (req, res, next) => {
+  try {
+    const summary = await getTransactionSummary({
+      fromDate: req.query.fromDate,
+      toDate: req.query.toDate
+    });
+    ok(res, summary, 'Transaction summary retrieved');
+  } catch (e) { next(e); }
+});
+
+// Get transaction details by ID
+app.get('/api/admin/transactions/:id', auth, guard('ROLE_ADMIN'), async (req, res, next) => {
+  try {
+    const txn = await getTransactionDetails(req.params.id);
+    if (!txn) return fail(res, 404, 'Transaction not found');
+    ok(res, txn, 'Transaction details retrieved');
+  } catch (e) { next(e); }
+});
+
+// Export transactions (admin only)
+app.get('/api/admin/transactions/export/csv', auth, guard('ROLE_ADMIN'), async (req, res, next) => {
+  try {
+    const filters = {
+      status: req.query.status,
+      environment: 'TEST',
+      fromDate: req.query.fromDate,
+      toDate: req.query.toDate
+    };
+
+    const {transactions} = await getTransactionsList({...filters, limit: 10000, offset: 0});
+
+    // Build CSV
+    const headers = ['Transaction ID', 'Student', 'Owner', 'Job', 'Amount', 'Status', 'Environment', 'Payment Method', 'Order ID', 'Payment ID', 'Created Date'];
+    const rows = transactions.map(t => [
+      t.transactionId,
+      t.studentName,
+      t.ownerName,
+      t.jobTitle,
+      `₹${t.amount}`,
+      t.paymentStatus,
+      t.environment,
+      t.paymentMethod || 'N/A',
+      t.razorpayOrderId || '',
+      t.razorpayPaymentId || '',
+      new Date(t.createdAt).toLocaleString('en-IN')
+    ]);
+
+    const csv = [headers, ...rows].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="transactions.csv"');
+    res.send(csv);
+  } catch (e) { next(e); }
+});
+
+// ─── STUDENT TRANSACTIONS ───────────────────────────────────────────────────
+
+// Get student's own transactions
+app.get('/api/student/transactions', auth, guard('ROLE_STUDENT'), async (req, res, next) => {
+  try {
+    const [[studentProfile]] = await pool.query('SELECT id FROM student_profiles WHERE user_id=?', [req.user.id]);
+    if (!studentProfile) return fail(res, 404, 'Student profile not found');
+
+    const filters = {
+      studentId: studentProfile.id,
+      status: req.query.status,
+      environment: 'TEST',
+      limit: req.query.limit || 20,
+      offset: req.query.offset || 0
+    };
+
+    const result = await getTransactionsList(filters);
+    ok(res, result, 'Student transactions retrieved');
+  } catch (e) { next(e); }
+});
+
+// Get student transaction details
+app.get('/api/student/transactions/:id', auth, guard('ROLE_STUDENT'), async (req, res, next) => {
+  try {
+    const [[studentProfile]] = await pool.query('SELECT id FROM student_profiles WHERE user_id=?', [req.user.id]);
+    if (!studentProfile) return fail(res, 404, 'Student profile not found');
+
+    const txn = await getTransactionDetails(req.params.id);
+    if (!txn) return fail(res, 404, 'Transaction not found');
+    
+    // Verify student owns this transaction
+    if (txn.studentId !== studentProfile.id) {
+      return fail(res, 403, 'You do not have permission to view this transaction');
+    }
+
+    ok(res, txn, 'Transaction details retrieved');
+  } catch (e) { next(e); }
+});
+
+// ─── OWNER TRANSACTIONS ─────────────────────────────────────────────────────
+
+// Get owner's transactions (from their jobs)
+app.get('/api/owner/transactions', auth, guard('ROLE_OWNER'), async (req, res, next) => {
+  try {
+    const [[ownerProfile]] = await pool.query('SELECT id FROM owner_profiles WHERE user_id=?', [req.user.id]);
+    if (!ownerProfile) return fail(res, 404, 'Owner profile not found');
+
+    const filters = {
+      ownerId: ownerProfile.id,
+      status: req.query.status,
+      environment: 'TEST',
+      limit: req.query.limit || 20,
+      offset: req.query.offset || 0
+    };
+
+    const result = await getTransactionsList(filters);
+    ok(res, result, 'Owner transactions retrieved');
+  } catch (e) { next(e); }
+});
+
+// Get owner transaction details
+app.get('/api/owner/transactions/:id', auth, guard('ROLE_OWNER'), async (req, res, next) => {
+  try {
+    const [[ownerProfile]] = await pool.query('SELECT id FROM owner_profiles WHERE user_id=?', [req.user.id]);
+    if (!ownerProfile) return fail(res, 404, 'Owner profile not found');
+
+    const txn = await getTransactionDetails(req.params.id);
+    if (!txn) return fail(res, 404, 'Transaction not found');
+    
+    // Verify owner owns the job in this transaction
+    if (txn.ownerId !== ownerProfile.id) {
+      return fail(res, 403, 'You do not have permission to view this transaction');
+    }
+
+    ok(res, txn, 'Transaction details retrieved');
   } catch (e) { next(e); }
 });
 
@@ -1058,7 +1406,10 @@ app.delete('/api/account', auth, async (req, res, next) => {
 // ─── STATIC FILES & ERROR HANDLING ───────────────────────────────────────────
 
 app.use('/uploads', express.static(uploadsDir));
-// Razorpay webhook needs raw body - mount before JSON parser for this specific route
+app.use(express.static(staticDir));
+// Wire up Razorpay routes (some require auth, some don't - handled in routes)
+app.use('/', razorpayRouter);
+// Razorpay webhook needs raw body - mount before JSON parser for this specific route  
 app.post('/api/razorpay/webhook', express.raw({type: 'application/json'}), async (req, res) => {
   const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
   try {
@@ -1086,7 +1437,6 @@ app.post('/api/razorpay/webhook', express.raw({type: 'application/json'}), async
     res.json({status: 'ok'});
   } catch (e) { console.error('[RAZORPAY] Webhook error:', e.message); res.json({status: 'ok'}); }
 });
-app.use(express.static(staticDir));
 app.get('*', (req, res) => res.sendFile(path.join(staticDir, 'index.html')));
 app.use((e, req, res, next) => { console.error(e); fail(res, e.status || 500, e.status ? e.message : 'Internal server error'); });
 

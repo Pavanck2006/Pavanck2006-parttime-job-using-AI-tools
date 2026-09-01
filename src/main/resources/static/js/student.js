@@ -255,16 +255,18 @@ const Student = {
                 <div class="col-6"><i class="bi bi-check2-circle me-1"></i>Attendance: <strong>${app.attendanceStatus}</strong></div>
               </div>
 
-              <div class="d-flex gap-2 flex-wrap">
-                <button class="btn btn-sm btn-success flex-grow-1" onclick="Student.openRazorpayPayModal(${app.id}, '${App.escapeHtml(app.jobTitle)}', '${App.escapeHtml(app.ownerName || app.cateringName)}', ${app.paymentAmount})">
-                  <i class="bi bi-credit-card me-1"></i>Pay Online
-                </button>
-                <button class="btn btn-sm btn-outline-success" onclick="App.openConfirmPaymentModal(${app.id}, '${App.escapeHtml(app.jobTitle)}', ${app.paymentAmount})">
-                  <i class="bi bi-cash-stack me-1"></i>On-Spot
-                </button>
-                <button class="btn btn-sm btn-outline-danger" onclick="App.openDisputeModal(${app.jobId}, ${app.id}, '${App.escapeHtml(app.jobTitle)}', ${app.paymentAmount})">
-                  <i class="bi bi-exclamation-triangle me-1"></i>Dispute
-                </button>
+              <div class="d-flex flex-column gap-2">
+                <div class="alert alert-success border-0 py-2 mb-0 small">
+                  <i class="bi bi-wallet2 me-1"></i>Payment is due from the owner to you after the shift is completed.
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                  <button class="btn btn-sm btn-outline-success" onclick="App.openConfirmPaymentModal(${app.id}, '${App.escapeHtml(app.jobTitle)}', ${app.paymentAmount})">
+                    <i class="bi bi-cash-stack me-1"></i>Confirm Receipt
+                  </button>
+                  <button class="btn btn-sm btn-outline-danger" onclick="App.openDisputeModal(${app.jobId}, ${app.id}, '${App.escapeHtml(app.jobTitle)}', ${app.paymentAmount})">
+                    <i class="bi bi-exclamation-triangle me-1"></i>Dispute
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -460,13 +462,13 @@ const Student = {
           <td class="fw-bold text-success">₹${pay.amount}</td>
           <td><span class="badge bg-primary-subtle text-primary border">${pay.paymentTypeDisplayName || 'On-Spot'}</span>${isOnline ? '<br><span class="badge bg-info text-dark mt-1"><i class="bi bi-credit-card me-1"></i>Online</span>' : ''}</td>
           <td>
-            ${rp.paymentStatus === 'SUCCESS' || rp.paymentStatus === 'CONFIRMED' ? '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Paid</span>' :
-              rp.paymentStatus === 'CREATED' ? '<span class="badge bg-warning text-dark">Processing</span>' :
-              rp.paymentStatus === 'FAILED' ? '<span class="badge bg-danger">Failed</span>' :
-              pay.paymentStatus === 'CONFIRMED' ? '<span class="badge bg-success">Confirmed</span>' :
-              pay.paymentStatus === 'PAID' ? '<span class="badge bg-info">Marked Paid</span>' :
+            ${rp.paymentStatus === 'SUCCESS' || rp.paymentStatus === 'CONFIRMED' ? '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Owner Paid</span>' :
+              rp.paymentStatus === 'CREATED' ? '<span class="badge bg-warning text-dark">Owner payment processing</span>' :
+              rp.paymentStatus === 'FAILED' ? '<span class="badge bg-danger">Payment failed</span>' :
+              pay.paymentStatus === 'CONFIRMED' ? '<span class="badge bg-success">Owner confirmed payment</span>' :
+              pay.paymentStatus === 'PAID' ? '<span class="badge bg-info">Awaiting your confirmation</span>' :
               pay.paymentStatus === 'DISPUTED' ? '<span class="badge bg-danger">Disputed</span>' :
-              '<span class="badge bg-warning text-dark">Pending</span>'}
+              '<span class="badge bg-warning text-dark">Pending owner payment</span>'}
             ${rp.razorpayPaymentId ? `<br><small class="text-muted">RP: ${rp.razorpayPaymentId.substring(0, 20)}</small>` : ''}
             ${rp.environment ? '<br><span class="badge bg-warning-subtle text-warning border border-warning-subtle small mt-1"><i class="bi bi-info-circle me-1"></i>TEST</span>' : ''}
           </td>
