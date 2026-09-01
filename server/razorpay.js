@@ -88,8 +88,8 @@ router.post('/api/student/razorpay/create-order', async (req, res) => {
 
     // Update payment record with order ID
     await pool.query(
-      "UPDATE payment_records SET razorpay_order_id = ?, payment_status = 'CREATED', environment = 'TEST' WHERE id = ?",
-      [order.id, record.id]
+      "UPDATE payment_records SET razorpay_order_id = ?, payment_status = 'CREATED', environment = 'TEST', razorpay_receipt = ? WHERE id = ?",
+      [order.id, order.receipt || null, record.id]
     );
 
     res.json({data: {
@@ -275,12 +275,14 @@ router.post('/api/razorpay/webhook', express.raw({type: 'application/json'}), as
 router.get('/api/student/razorpay/transactions', async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT p.*, j.title job_title, j.work_area, o.catering_name owner_catering_name,
+      `SELECT p.*, j.title job_title, j.work_area, j.job_date,
+              o.catering_name owner_catering_name, ou.full_name owner_name,
               a.status app_status
        FROM payment_records p
        JOIN catering_jobs j ON j.id = p.job_id
        JOIN student_profiles s ON s.id = p.student_id
        JOIN owner_profiles o ON o.id = p.owner_id
+       JOIN users ou ON ou.id = o.user_id
        JOIN job_applications a ON a.id = p.application_id
        WHERE s.user_id = ?
        ORDER BY p.created_at DESC`,
@@ -330,11 +332,132 @@ router.get('/api/owner/razorpay/transactions', async (req, res) => {
       createdAt: r.created_at, confirmedPaidAt: r.confirmed_paid_at,
       markedPaidAt: r.marked_paid_at,
       jobTitle: r.job_title, workArea: r.work_area,
-      studentName: r.student_name, studentEmail: r.student_email
+      studentName: r.student_name, studentEmail: r.student_email,
+      studentPhone: r.phone, collegeName: r.college_name,
+      jobDate: r.job_date
     }))});
   } catch (e) {
     console.error('[RAZORPAY] owner transactions error:', e.message);
     res.status(500).json({message: 'Failed to fetch transactions'});
+  }
+});
+
+
+
+// ─── GET /api/student/razorpay/transactions/:id ─────────────────────────────
+// Single transaction detail for student
+router.get('/api/student/razorpay/transactions/:id', async (req, res) => {
+  try {
+    const [[row]] = await pool.query(
+      `SELECT p.*, j.title job_title, j.work_area, j.job_date, j.start_time, j.end_time,
+              j.payment_amount job_payment_amount, j.payment_type job_payment_type,
+              o.catering_name owner_catering_name, ou.full_name owner_name,
+              su.full_name student_name, su.email student_email, su.phone student_phone,
+              sp.college_name
+       FROM payment_records p
+       JOIN catering_jobs j ON j.id = p.job_id
+       JOIN owner_profiles o ON o.id = p.owner_id
+       JOIN users ou ON ou.id = o.user_id
+       JOIN student_profiles s ON s.id = p.student_id
+       JOIN users su ON su.id = s.user_id
+       JOIN student_profiles sp ON sp.id = p.student_id
+       WHERE p.id = ? AND s.user_id = ?`,
+      [req.params.id, req.user.id]
+    );
+    if (!row) return res.status(404).json({message: 'Transaction not found'});
+    res.json({data: {
+      id: row.id, applicationId: row.application_id, jobId: row.job_id,
+      amount: row.amount, currency: 'INR',
+      paymentType: row.payment_type, paymentStatus: row.payment_status,
+      razorpayOrderId: row.razorpay_order_id, razorpayPaymentId: row.razorpay_payment_id,
+      razorpaySignature: row.razorpay_signature ? '***' : null,
+      environment: row.environment, paymentMethod: row.payment_method,
+      createdAt: row.created_at, confirmedPaidAt: row.confirmed_paid_at,
+      markedPaidAt: row.marked_paid_at, updatedAt: row.updated_at,
+      jobTitle: row.job_title, workArea: row.work_area,
+      jobDate: row.job_date, startTime: row.start_time, endTime: row.end_time,
+      ownerCateringName: row.owner_catering_name, ownerName: row.owner_name,
+      studentName: row.student_name, studentEmail: row.student_email,
+      studentPhone: row.student_phone, collegeName: row.college_name
+    }});
+  } catch (e) {
+    console.error('[RAZORPAY] transaction detail error:', e.message);
+    res.status(500).json({message: 'Failed to fetch transaction detail'});
+  }
+});
+
+// ─── GET /api/owner/razorpay/transactions/:id ────────────────────────────────
+// Single transaction detail for owner
+router.get('/api/owner/razorpay/transactions/:id', async (req, res) => {
+  try {
+    const [[op]] = await pool.query('SELECT id FROM owner_profiles WHERE user_id = ?', [req.user.id]);
+    if (!op) return res.status(404).json({message: 'Owner profile not found'});
+    const [[row]] = await pool.query(
+      `SELECT p.*, j.title job_title, j.work_area, j.job_date, j.start_time, j.end_time,
+              su.full_name student_name, su.email student_email, su.phone student_phone,
+              sp.college_name, sp.skills,
+              o.catering_name owner_catering_name
+       FROM payment_records p
+       JOIN catering_jobs j ON j.id = p.job_id
+       JOIN student_profiles sp ON sp.id = p.student_id
+       JOIN users su ON su.id = sp.user_id
+       JOIN owner_profiles o ON o.id = p.owner_id
+       WHERE p.id = ? AND p.owner_id = ?`,
+      [req.params.id, op.id]
+    );
+    if (!row) return res.status(404).json({message: 'Transaction not found'});
+    res.json({data: {
+      id: row.id, applicationId: row.application_id, jobId: row.job_id,
+      amount: row.amount, currency: 'INR',
+      paymentType: row.payment_type, paymentStatus: row.payment_status,
+      razorpayOrderId: row.razorpay_order_id, razorpayPaymentId: row.razorpay_payment_id,
+      environment: row.environment, paymentMethod: row.payment_method,
+      createdAt: row.created_at, confirmedPaidAt: row.confirmed_paid_at,
+      markedPaidAt: row.marked_paid_at, updatedAt: row.updated_at,
+      jobTitle: row.job_title, workArea: row.work_area,
+      jobDate: row.job_date, startTime: row.start_time, endTime: row.end_time,
+      ownerCateringName: row.owner_catering_name,
+      studentName: row.student_name, studentEmail: row.student_email,
+      studentPhone: row.student_phone, collegeName: row.college_name, skills: row.skills
+    }});
+  } catch (e) {
+    console.error('[RAZORPAY] owner transaction detail error:', e.message);
+    res.status(500).json({message: 'Failed to fetch transaction detail'});
+  }
+});
+
+// ─── GET /api/admin/razorpay/transactions ────────────────────────────────────
+// Admin can view all transactions
+router.get('/api/admin/razorpay/transactions', async (req, res) => {
+  if (req.user.role !== 'ROLE_ADMIN') return res.status(403).json({message: 'Admin only'});
+  try {
+    const [rows] = await pool.query(
+      `SELECT p.*, j.title job_title, j.work_area,
+              su.full_name student_name, su.email student_email,
+              o.catering_name owner_catering_name, ou.full_name owner_name
+       FROM payment_records p
+       JOIN catering_jobs j ON j.id = p.job_id
+       JOIN student_profiles sp ON sp.id = p.student_id
+       JOIN users su ON su.id = sp.user_id
+       JOIN owner_profiles o ON o.id = p.owner_id
+       JOIN users ou ON ou.id = o.user_id
+       ORDER BY p.created_at DESC
+       LIMIT 200`
+    );
+    res.json({data: rows.map(r => ({
+      id: r.id, applicationId: r.application_id, jobId: r.job_id,
+      amount: r.amount, paymentType: r.payment_type,
+      paymentStatus: r.payment_status,
+      razorpayOrderId: r.razorpay_order_id, razorpayPaymentId: r.razorpay_payment_id,
+      environment: r.environment, paymentMethod: r.payment_method,
+      createdAt: r.created_at, confirmedPaidAt: r.confirmed_paid_at,
+      jobTitle: r.job_title, workArea: r.work_area,
+      studentName: r.student_name, studentEmail: r.student_email,
+      ownerCateringName: r.owner_catering_name, ownerName: r.owner_name
+    }))});
+  } catch (e) {
+    console.error('[RAZORPAY] admin transactions error:', e.message);
+    res.status(500).json({message: 'Failed to fetch admin transactions'});
   }
 });
 

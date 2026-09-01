@@ -39,6 +39,10 @@ app.use(express.json({limit: '1mb'}));
 app.use(express.urlencoded({extended: true}));
 app.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 
+// ─── STATIC FILES (must be BEFORE auth middleware) ──────────────────────
+app.use(express.static(staticDir));
+app.get('*', (req, res) => res.sendFile(path.join(staticDir, 'index.html')));
+
 const ok = (res, data, message) => res.json({data, ...(message ? {message} : {})});
 const fail = (res, status, message) => res.status(status).json({message});
 const guard = (...roles) => (req, res, next) => req.user && roles.includes(req.user.role) ? next() : fail(res, 403, 'You do not have permission for this action');
@@ -432,6 +436,24 @@ async function ownerId(req) {
   const [r] = await pool.query('SELECT id FROM owner_profiles WHERE user_id=?', [req.user.id]);
   return r[0]?.id;
 }
+
+app.get('/api/owner/dashboard', auth, guard('ROLE_OWNER'), async (req, res, next) => {
+  try {
+    const oid = await ownerId(req);
+    const [r] = await pool.query(`SELECT
+      (SELECT COUNT(*) FROM catering_jobs WHERE owner_id=? AND status='OPEN') totalActiveJobsCount,
+      (SELECT COUNT(*) FROM catering_jobs WHERE owner_id=? AND status='COMPLETED') totalCompletedJobsCount,
+      (SELECT COUNT(*) FROM job_applications a JOIN catering_jobs j ON j.id=a.job_id WHERE j.owner_id=? AND a.status='ACCEPTED') totalHiredCount,
+      (SELECT COUNT(*) FROM job_applications a JOIN catering_jobs j ON j.id=a.job_id WHERE j.owner_id=? AND a.status='APPLIED') totalPendingApplications,
+      (SELECT COUNT(*) FROM payment_records p WHERE p.owner_id=? AND p.payment_status='SUCCESS') totalSuccessTransactions,
+      (SELECT COUNT(*) FROM payment_records p WHERE p.owner_id=? AND p.payment_status='FAILED') totalFailedTransactions,
+      (SELECT COUNT(*) FROM payment_records p WHERE p.owner_id=? AND p.payment_status='CREATED') totalPendingTransactions,
+      (SELECT COALESCE(SUM(p.amount),0) FROM payment_records p WHERE p.owner_id=? AND p.payment_status='SUCCESS') totalTestRevenue,
+      (SELECT COUNT(*) FROM notifications WHERE recipient_id=? AND is_read=FALSE) unreadNotificationsCount`,
+      [oid, oid, oid, oid, oid, oid, oid, oid, req.user.id]);
+    ok(res, r[0]);
+  } catch (e) { next(e); }
+});
 
 app.get('/api/owner/profile', auth, guard('ROLE_OWNER'), async (req, res, next) => {
   try { ok(res, profile(await current(req, 'owner'))); } catch (e) { next(e); }

@@ -787,6 +787,11 @@
             <i class="bi bi-trash me-1"></i>Deletion Requests
           </button>
         </li>
+        <li class="nav-item">
+          <button class="nav-link" data-bs-toggle="pill" data-bs-target="#st-tab-transactions">
+            <i class="bi bi-receipt me-1"></i>Transactions
+          </button>
+        </li>
       </ul>
 
       <!-- Tab Contents -->
@@ -888,7 +893,67 @@
           </div>
         </div>
 
-        <!-- 6. Complaints -->
+
+        <!-- 8. Transaction History -->
+        <div class="tab-pane fade" id="st-tab-transactions">
+          <div class="mb-3">
+            <h5 class="fw-bold mb-1"><i class="bi bi-receipt me-2"></i>Transaction History</h5>
+            <p class="text-muted small mb-3">Complete record of all your online and on-spot payments. Click a transaction to view full details.</p>
+          </div>
+          <!-- Transaction Summary Cards -->
+          <div class="row g-3 mb-4" id="stTxSummary">
+            <div class="col-sm-3">
+              <div class="card border-0 shadow-sm text-center p-3">
+                <div class="small text-muted mb-1">Total Paid</div>
+                <div class="fw-bold fs-5 text-success" id="stTxPaidCount">0</div>
+              </div>
+            </div>
+            <div class="col-sm-3">
+              <div class="card border-0 shadow-sm text-center p-3">
+                <div class="small text-muted mb-1">Failed</div>
+                <div class="fw-bold fs-5 text-danger" id="stTxFailedCount">0</div>
+              </div>
+            </div>
+            <div class="col-sm-3">
+              <div class="card border-0 shadow-sm text-center p-3">
+                <div class="small text-muted mb-1">Cancelled</div>
+                <div class="fw-bold fs-5 text-warning" id="stTxCancelledCount">0</div>
+              </div>
+            </div>
+            <div class="col-sm-3">
+              <div class="card border-0 shadow-sm text-center p-3">
+                <div class="small text-muted mb-1">Total Amount</div>
+                <div class="fw-bold fs-5 text-primary" id="stTxTotalAmount">₹0</div>
+              </div>
+            </div>
+          </div>
+          <!-- Filter Buttons -->
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            <button class="btn btn-sm btn-primary" onclick="Student.filterTransactions('ALL')">All</button>
+            <button class="btn btn-sm btn-outline-success" onclick="Student.filterTransactions('SUCCESS')">Paid</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="Student.filterTransactions('FAILED')">Failed</button>
+            <button class="btn btn-sm btn-outline-warning" onclick="Student.filterTransactions('CANCELLED')">Cancelled</button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="Student.filterTransactions('CREATED')">Processing</button>
+          </div>
+          <div class="custom-table table-responsive">
+            <table class="table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Job</th>
+                  <th>Owner</th>
+                  <th>Amount</th>
+                  <th>Mode</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="stTxList"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 9. Complaints -->
         <div class="tab-pane fade" id="st-tab-reports">
           <div class="card p-4 border-0 shadow-sm">
             <h5 class="fw-bold mb-1"><i class="bi bi-shield-exclamation text-danger me-2"></i>My Complaints</h5>
@@ -1133,6 +1198,11 @@
             <i class="bi bi-archive me-1"></i>Closed Jobs
           </button>
         </li>
+        <li class="nav-item">
+          <button class="nav-link" data-bs-toggle="pill" data-bs-target="#ow-tab-transactions">
+            <i class="bi bi-receipt me-1"></i>Transactions
+          </button>
+        </li>
       </ul>
 
       <div class="tab-content">
@@ -1304,7 +1374,59 @@
           <div id="owClosedJobsList"></div>
         </div>
 
-        <!-- 3. Payments -->
+
+        <!-- 5. Transaction History -->
+        <div class="tab-pane fade" id="ow-tab-transactions">
+          <div class="mb-3">
+            <h5 class="fw-bold mb-1"><i class="bi bi-receipt me-2"></i>Transaction History</h5>
+            <p class="text-muted small mb-3">Complete record of all student payments for your jobs. Click a transaction to view full details.</p>
+          </div>
+          <!-- Transaction Summary Cards -->
+          <div class="row g-3 mb-4" id="owTxSummary">
+            <div class="col-sm-3">
+              <div class="card border-0 shadow-sm text-center p-3">
+                <div class="small text-muted mb-1">Test Revenue</div>
+                <div class="fw-bold fs-5 text-success" id="owTxRevenue">₹0</div>
+              </div>
+            </div>
+            <div class="col-sm-3">
+              <div class="card border-0 shadow-sm text-center p-3">
+                <div class="small text-muted mb-1">Successful</div>
+                <div class="fw-bold fs-5 text-primary" id="owTxSuccessCount">0</div>
+              </div>
+            </div>
+            <div class="col-sm-3">
+              <div class="card border-0 shadow-sm text-center p-3">
+                <div class="small text-muted mb-1">Failed</div>
+                <div class="fw-bold fs-5 text-danger" id="owTxFailedCount">0</div>
+              </div>
+            </div>
+            <div class="col-sm-3">
+              <div class="card border-0 shadow-sm text-center p-3">
+                <div class="small text-muted mb-1">Pending</div>
+                <div class="fw-bold fs-5 text-warning" id="owTxPendingCount">0</div>
+              </div>
+            </div>
+          </div>
+          <div class="custom-table table-responsive">
+            <table class="table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>Job</th>
+                  <th>Student</th>
+                  <th>Amount</th>
+                  <th>Mode</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="owTxList"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 4. Payments -->
         <div class="tab-pane fade" id="ow-tab-payments">
           <!-- Payment Summary Cards -->
           <div class="row g-3 mb-4" id="owPaymentSummary">
@@ -2088,6 +2210,22 @@
           </div>
           <div class="small text-muted mb-3" id="rpSuccessDetails"></div>
           <button type="button" class="btn btn-primary-custom px-4" data-bs-dismiss="modal">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- 11. TRANSACTION DETAIL MODAL -->
+  <div class="modal fade" id="txDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-title fw-bold"><i class="bi bi-receipt me-2 text-primary"></i>Transaction Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="txDetailBody">
+          <div class="text-center py-4"><span class="spinner-border text-primary"></span><div class="small text-muted mt-2">Loading transaction...</div></div>
         </div>
       </div>
     </div>

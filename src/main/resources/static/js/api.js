@@ -166,6 +166,21 @@ const API = {
     },
     getPayments() {
       return API.request('/student/payments');
+    },
+    getRazorpayTransactions() {
+      return API.request('/student/razorpay/transactions');
+    },
+    getRazorpayTransaction(id) {
+      return API.request('/student/razorpay/transactions/' + id);
+    },
+    createRazorpayOrder(paymentRecordId) {
+      return API.request('/student/razorpay/create-order', { method: 'POST', body: JSON.stringify({paymentRecordId}) });
+    },
+    verifyRazorpayPayment(payload) {
+      return API.request('/student/razorpay/verify', { method: 'POST', body: JSON.stringify(payload) });
+    },
+    cancelRazorpayPayment(paymentRecordId) {
+      return API.request('/student/razorpay/cancel', { method: 'POST', body: JSON.stringify({paymentRecordId}) });
     }
   },
 
@@ -242,6 +257,12 @@ const API = {
     },
     getComplaints() {
       return API.request('/owner/complaints');
+    },
+    getRazorpayTransactions() {
+      return API.request('/owner/razorpay/transactions');
+    },
+    getRazorpayTransaction(id) {
+      return API.request('/owner/razorpay/transactions/' + id);
     }
   },
 
@@ -279,6 +300,9 @@ const API = {
     },
     getAllReports() {
       return API.request('/admin/reports');
+    },
+    getTransactions() {
+      return API.request('/admin/razorpay/transactions');
     },
     resolveReport(reportId, status, adminRemarks) {
       return API.request(`/admin/reports/${reportId}/resolve`, {
