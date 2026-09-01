@@ -39,9 +39,9 @@ app.use(express.json({limit: '1mb'}));
 app.use(express.urlencoded({extended: true}));
 app.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 
-// ─── STATIC FILES (must be BEFORE auth middleware) ──────────────────────
+// ─── STATIC FILES (served before auth so /, /css/*, /js/* work without JWT) ──
+app.use(express.static(path.join(__dirname, 'uploads')));
 app.use(express.static(staticDir));
-app.get('*', (req, res) => res.sendFile(path.join(staticDir, 'index.html')));
 
 const ok = (res, data, message) => res.json({data, ...(message ? {message} : {})});
 const fail = (res, status, message) => res.status(status).json({message});
@@ -1454,7 +1454,14 @@ app.post('/api/razorpay/webhook', express.raw({type: 'application/json'}), async
       }
     } else if (event.event === 'payment.failed') {
       const p = event.payload.payment.entity;
-      await pool.query("UPDATE payment_records SET payment_status='FAILED' WHERE razorpay_order_id=? AND payment_status='CREATED'", [p.order_id]);
+      const failReason = p.error_description || p.error_reason || null;
+      await pool.query("UPDATE payment_records SET payment_status='FAILED', failure_reason=? WHERE razorpay_order_id=? AND payment_status='CREATED'", [failReason, p.order_id]);
+    } else if (event.event === 'refund.created' || event.event === 'refund.processed') {
+      const r = event.payload.refund.entity;
+      if (r.payment_id) {
+        await pool.query("UPDATE payment_records SET payment_status='REFUNDED' WHERE razorpay_payment_id=? AND payment_status IN ('SUCCESS','CONFIRMED')", [r.payment_id]);
+        console.log('[RAZORPAY] Webhook: refund processed for payment', r.payment_id);
+      }
     }
     res.json({status: 'ok'});
   } catch (e) { console.error('[RAZORPAY] Webhook error:', e.message); res.json({status: 'ok'}); }

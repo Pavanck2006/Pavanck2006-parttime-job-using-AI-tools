@@ -301,8 +301,15 @@ const API = {
     getAllReports() {
       return API.request('/admin/reports');
     },
-    getTransactions() {
-      return API.request('/admin/razorpay/transactions');
+    getTransactions(params = {}) {
+      const query = new URLSearchParams(params).toString();
+      return API.request(`/admin/razorpay/transactions${query ? '?' + query : ''}`);
+    },
+    getTransaction(id) {
+      return API.request(`/admin/razorpay/transactions/${id}`);
+    },
+    getTransactionFilterOptions() {
+      return API.request('/admin/razorpay/transactions/filter-options');
     },
     resolveReport(reportId, status, adminRemarks) {
       return API.request(`/admin/reports/${reportId}/resolve`, {
