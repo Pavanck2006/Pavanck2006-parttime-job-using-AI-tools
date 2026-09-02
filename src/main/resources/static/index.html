@@ -1239,7 +1239,7 @@
                   <label class="form-label small fw-semibold">General Area *</label>
                   <div class="input-group">
                     <input type="text" id="jobWorkArea" class="form-control" placeholder="e.g. Kengeri, Bangalore" required>
-                    <button type="button" class="btn btn-outline-primary" onclick="Owner.useMyLocation('area')" title="Use my current GPS location">
+                    <button type="button" class="btn btn-outline-primary" onclick="Owner.captureGpsLocation()" title="Use my current GPS location">
                       <i class="bi bi-geo-alt-fill"></i> GPS
                     </button>
                   </div>
@@ -1250,7 +1250,7 @@
                   <label class="form-label small fw-semibold">Detailed Venue Address *</label>
                   <div class="input-group">
                     <input type="text" id="jobDetailedLocation" class="form-control" placeholder="e.g. Shubha Kalyana Mantapa, 8th Cross Kengeri" required>
-                    <button type="button" class="btn btn-outline-primary" onclick="Owner.useMyLocation(&apos;detail&apos;)" title="Use my current GPS location">
+                    <button type="button" class="btn btn-outline-primary" onclick="Owner.captureGpsLocation()" title="Use my current GPS location">
                       <i class="bi bi-geo-alt-fill"></i> GPS
                     </button>
                   </div>

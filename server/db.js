@@ -44,6 +44,17 @@ function convertQuerySql(sql) {
   s = s.replace(/\bFOR\s+UPDATE\b/gi, '');
   s = s.replace(/\bIF\s*\(([^,]+),\s*'([^']*)',\s*'([^']*)'\)/gi, "CASE WHEN $1 THEN '$2' ELSE '$3' END");
   s = s.replace(/\bIF\s*\(([^,]+),\s*(\d+),\s*(\d+)\)/gi, "CASE WHEN $1 THEN $2 ELSE $3 END");
+  // MySQL YEAR()/MONTH() → SQLite strftime
+  s = s.replace(/\bYEAR\(([^)]+)\)/gi, "strftime('%Y',$1)");
+  s = s.replace(/\bMONTH\(([^)]+)\)/gi, "strftime('%m',$1)");
+  // MySQL IS TRUE/FALSE comparisons
+  s = s.replace(/(\w+)\s*=\s*FALSE/gi, "$1 = 0");
+  s = s.replace(/(\w+)\s*=\s*TRUE/gi, "$1 = 1");
+  // Handle standalone FALSE/TRUE in WHERE clauses
+  s = s.replace(/\bFALSE\b/gi, '0');
+  s = s.replace(/\bTRUE\b/gi, '1');
+  // MySQL double-quoted string literals → single-quoted (SQLite treats double quotes as identifiers)
+  s = s.replace(/"([^"]+)"/g, "'$1'");
 
   // ─── UPDATE ... JOIN ... SET ... WHERE ... ──────────────────────────────
   const updateJoinMatch = s.match(
@@ -92,8 +103,13 @@ function convertQuerySql(sql) {
 // ─── Query API (mysql2/promise compatible) ─────────────────────────────────
 
 function executeQuery(sql, params = []) {
-  // Convert JS booleans to integers for SQLite
-  const safeParams = (params || []).map(p => typeof p === 'boolean' ? (p ? 1 : 0) : p);
+  // Convert JS booleans, Date objects, and undefined to SQLite-safe values
+  const safeParams = (params || []).map(p => {
+    if (typeof p === 'boolean') return p ? 1 : 0;
+    if (p instanceof Date) return p.toISOString();
+    if (p === undefined) return null;
+    return p;
+  });
   const converted = convertQuerySql(sql);
   const trimmed = converted.trim();
   const upperStart = trimmed.toUpperCase();
@@ -116,6 +132,8 @@ function executeQuery(sql, params = []) {
       if (/^\s*INSERT\s+OR\s+IGNORE\b/i.test(trimmed)) {
         return [{ insertId: 0, affectedRows: 0 }, []];
       }
+      // MySQL ER_DUP_ENTRY equivalent for duplicate key
+      e.code = 'ER_DUP_ENTRY';
     }
     throw e;
   }
@@ -177,10 +195,22 @@ async function initializeDatabase() {
     FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
   )`);
 
-  // Migrations
+  // Migrations - safe ALTER TABLE that only adds columns if they don't exist
   try { db.exec('ALTER TABLE catering_jobs ADD COLUMN location_photo_url TEXT'); } catch(e) {}
   try { db.exec('ALTER TABLE student_profiles ADD COLUMN profile_photo_url TEXT'); } catch(e) {}
   try { db.exec('ALTER TABLE owner_profiles ADD COLUMN profile_photo_url TEXT'); } catch(e) {}
+  // payment_records missing columns for Razorpay integration
+  try { db.exec('ALTER TABLE payment_records ADD COLUMN razorpay_order_id TEXT'); } catch(e) {}
+  try { db.exec('ALTER TABLE payment_records ADD COLUMN razorpay_payment_id TEXT'); } catch(e) {}
+  try { db.exec('ALTER TABLE payment_records ADD COLUMN razorpay_signature TEXT'); } catch(e) {}
+  try { db.exec('ALTER TABLE payment_records ADD COLUMN razorpay_receipt TEXT'); } catch(e) {}
+  try { db.exec('ALTER TABLE payment_records ADD COLUMN payment_method TEXT'); } catch(e) {}
+  try { db.exec('ALTER TABLE payment_records ADD COLUMN transaction_id TEXT'); } catch(e) {}
+  try { db.exec('ALTER TABLE payment_records ADD COLUMN environment TEXT DEFAULT "TEST"'); } catch(e) {}
+  try { db.exec('ALTER TABLE payment_records ADD COLUMN failure_reason TEXT'); } catch(e) {}
+  try { db.exec('ALTER TABLE payment_records ADD COLUMN confirmed_paid_at TEXT'); } catch(e) {}
+  try { db.exec('ALTER TABLE payment_records ADD COLUMN initiated_at TEXT'); } catch(e) {}
+  try { db.exec("ALTER TABLE payment_records ADD COLUMN updated_at TEXT DEFAULT (datetime('now','localtime'))"); } catch(e) {}
 
   // Seed data
   if (process.env.RUN_SEED !== 'false') {

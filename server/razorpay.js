@@ -5,6 +5,21 @@ const {pool, transaction} = require('./db');
 const {createOrUpdateTransaction, updateTransactionStatus} = require('./transactions');
 
 const router = express.Router();
+// Auth middleware for protected routes
+const jwt = require('jsonwebtoken');
+const SECRET = process.env.JWT_SECRET || 'development-secret-change-me';
+async function rpAuth(req, res, next) {
+  try {
+    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    if (!token) return res.status(401).json({message: 'Authentication is required'});
+    const c = jwt.verify(token, SECRET);
+    const [r] = await pool.query('SELECT * FROM users WHERE id=?', [c.id]);
+    if (!r[0] || !r[0].is_active || r[0].is_suspended) return res.status(401).json({message: 'Account is inactive or suspended'});
+    req.user = r[0];
+    next();
+  } catch { return res.status(401).json({message: 'Invalid or expired token'}); }
+}
+
 
 // ─── Razorpay client (lazy init) ──────────────────────────────────────────────
 let razorpay = null;
@@ -38,7 +53,7 @@ router.get('/api/public/razorpay-key', (req, res) => {
 
 // ─── POST /api/student/razorpay/create-order ──────────────────────────────────
 // Creates a Razorpay order for a payment record
-router.post('/api/student/razorpay/create-order', async (req, res) => {
+router.post('/api/student/razorpay/create-order', rpAuth, async (req, res) => {
   try {
     const {paymentRecordId} = req.body;
     if (!paymentRecordId) return res.status(400).json({message: 'paymentRecordId is required'});
@@ -107,7 +122,7 @@ router.post('/api/student/razorpay/create-order', async (req, res) => {
 
 // ─── POST /api/student/razorpay/verify ────────────────────────────────────────
 // Verifies Razorpay payment signature and updates transaction
-router.post('/api/student/razorpay/verify', async (req, res) => {
+router.post('/api/student/razorpay/verify', rpAuth, async (req, res) => {
   try {
     const {razorpay_order_id, razorpay_payment_id, razorpay_signature, paymentRecordId} = req.body;
 
@@ -176,7 +191,7 @@ router.post('/api/student/razorpay/verify', async (req, res) => {
 
 // ─── POST /api/student/razorpay/cancel ────────────────────────────────────────
 // Marks a CREATED payment as CANCELLED (user closed checkout)
-router.post('/api/student/razorpay/cancel', async (req, res) => {
+router.post('/api/student/razorpay/cancel', rpAuth, async (req, res) => {
   try {
     const {paymentRecordId} = req.body;
     if (!paymentRecordId) return res.status(400).json({message: 'paymentRecordId is required'});
@@ -272,7 +287,7 @@ router.post('/api/razorpay/webhook', express.raw({type: 'application/json'}), as
 
 // ─── GET /api/student/razorpay/transactions ───────────────────────────────────────────────────────
 // Student transaction history with Razorpay details
-router.get('/api/student/razorpay/transactions', async (req, res) => {
+router.get('/api/student/razorpay/transactions', rpAuth, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT p.*, j.title job_title, j.work_area, j.job_date,
@@ -307,7 +322,7 @@ router.get('/api/student/razorpay/transactions', async (req, res) => {
 
 // ─── GET /api/owner/razorpay/transactions ─────────────────────────────────────────────────────────
 // Owner transaction history
-router.get('/api/owner/razorpay/transactions', async (req, res) => {
+router.get('/api/owner/razorpay/transactions', rpAuth, async (req, res) => {
   try {
     const [[op]] = await pool.query('SELECT id FROM owner_profiles WHERE user_id = ?', [req.user.id]);
     if (!op) return res.json({data: []});
@@ -346,7 +361,7 @@ router.get('/api/owner/razorpay/transactions', async (req, res) => {
 
 // ─── GET /api/student/razorpay/transactions/:id ─────────────────────────────
 // Single transaction detail for student
-router.get('/api/student/razorpay/transactions/:id', async (req, res) => {
+router.get('/api/student/razorpay/transactions/:id', rpAuth, async (req, res) => {
   try {
     const [[row]] = await pool.query(
       `SELECT p.*, j.title job_title, j.work_area, j.job_date, j.start_time, j.end_time,
@@ -388,7 +403,7 @@ router.get('/api/student/razorpay/transactions/:id', async (req, res) => {
 
 // ─── GET /api/owner/razorpay/transactions/:id ────────────────────────────────
 // Single transaction detail for owner
-router.get('/api/owner/razorpay/transactions/:id', async (req, res) => {
+router.get('/api/owner/razorpay/transactions/:id', rpAuth, async (req, res) => {
   try {
     const [[op]] = await pool.query('SELECT id FROM owner_profiles WHERE user_id = ?', [req.user.id]);
     if (!op) return res.status(404).json({message: 'Owner profile not found'});
@@ -428,7 +443,7 @@ router.get('/api/owner/razorpay/transactions/:id', async (req, res) => {
 
 // ─── GET /api/admin/razorpay/transactions ────────────────────────────────────
 // Admin can view all transactions
-router.get('/api/admin/razorpay/transactions', async (req, res) => {
+router.get('/api/admin/razorpay/transactions', rpAuth, async (req, res) => {
   if (req.user.role !== 'ROLE_ADMIN') return res.status(403).json({message: 'Admin only'});
   try {
     const [rows] = await pool.query(

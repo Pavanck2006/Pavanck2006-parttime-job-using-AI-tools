@@ -336,7 +336,7 @@ app.get('/api/student/dashboard', auth, guard('ROLE_STUDENT'), async (req, res, 
       (SELECT COALESCE(SUM(amount),0) FROM payment_records p JOIN student_profiles s ON s.id=p.student_id WHERE s.user_id=? AND p.payment_status='PAID') totalEarnings,
       (SELECT COALESCE(SUM(amount),0) FROM payment_records p JOIN student_profiles s ON s.id=p.student_id WHERE s.user_id=? AND p.payment_status IN ('PENDING','INITIATED')) pendingEarnings,
       (SELECT COUNT(*) FROM notifications WHERE recipient_id=? AND is_read=FALSE) unreadNotificationsCount`,
-      [req.user.id, req.user.id, req.user.id, req.user.id, req.user.id, req.user.id, req.user.id, req.user.id]);
+      [req.user.id, req.user.id, req.user.id, req.user.id, req.user.id, req.user.id, req.user.id]);
     ok(res, r[0]);
   } catch (e) { next(e); }
 });
@@ -961,6 +961,69 @@ app.get('/api/owner/complaints', auth, guard('ROLE_OWNER'), async (req, res, nex
   } catch (e) { next(e); }
 });
 
+
+// ─── OWNER MARK PAYMENT PAID ────────────────────────────────────────────────
+app.put('/api/owner/applications/:id/payment', auth, guard('ROLE_OWNER'), async (req, res, next) => {
+  try {
+    const oid = await ownerId(req);
+    const b = req.body;
+    const status = (b.status || 'PAID').toUpperCase();
+    const data = await transaction(async c => {
+      const [[app]] = await c.query(
+        `SELECT a.id, a.job_id, a.student_id, a.payment_amount, j.title job_title, su.id student_user_id
+         FROM job_applications a
+         JOIN catering_jobs j ON j.id=a.job_id
+         JOIN student_profiles sp ON sp.id=a.student_id
+         JOIN users su ON su.id=sp.user_id
+         WHERE a.id=? AND j.owner_id=?`,
+        [req.params.id, oid]
+      );
+      if (!app) throw Object.assign(new Error('Application not found'), {status: 404});
+      const [[existing]] = await c.query('SELECT id FROM payment_records WHERE application_id=?', [app.id]);
+      if (existing) {
+        await c.query("UPDATE payment_records SET payment_status=?, payment_method='ON_SPOT', marked_paid_at=datetime('now','localtime'), notes=? WHERE application_id=?",
+          [status, b.notes || null, app.id]);
+      } else {
+        await c.query("INSERT INTO payment_records (application_id,job_id,student_id,owner_id,amount,payment_type,payment_status,payment_method,marked_paid_at,notes) VALUES (?,?,?,?,?,?,?,?,datetime('now','localtime'),?)",
+          [app.id, app.job_id, app.student_id, oid, app.payment_amount, 'ON_SPOT', status, 'ON_SPOT', b.notes || null]);
+      }
+      await c.query("UPDATE job_applications SET payment_status=?, payment_confirmation_date=datetime('now','localtime') WHERE id=?",
+        [status, app.id]);
+      if (status === 'PAID') {
+        await c.query("INSERT INTO notifications (recipient_id,title,message,type,related_entity_id) VALUES (?,?,?,?,?)",
+          [app.student_user_id, 'Payment Received', 'You have received payment of ₹' + app.payment_amount + ' for "' + app.job_title + '".', 'PAYMENT_COMPLETED', app.id]);
+      }
+      return {paid: true};
+    });
+    ok(res, data, 'Payment recorded successfully!');
+  } catch (e) { next(e); }
+});
+
+// ─── STUDENT PAYMENTS LIST ──────────────────────────────────────────────────
+app.get('/api/student/payments', auth, guard('ROLE_STUDENT'), async (req, res, next) => {
+  try {
+    const [r] = await pool.query(
+      `SELECT p.*, j.title job_title, j.work_area, j.job_date, o.catering_name, u.full_name owner_name
+       FROM payment_records p
+       JOIN catering_jobs j ON j.id=p.job_id
+       JOIN owner_profiles o ON o.id=p.owner_id
+       JOIN users u ON u.id=o.user_id
+       JOIN student_profiles sp ON sp.id=p.student_id
+       WHERE sp.user_id=? ORDER BY p.created_at DESC`,
+      [req.user.id]
+    );
+    ok(res, r.map(x => ({
+      id: x.id, applicationId: x.application_id, jobId: x.job_id,
+      amount: x.amount, paymentType: x.payment_type, paymentStatus: x.payment_status,
+      jobTitle: x.job_title, workArea: x.work_area, jobDate: x.job_date,
+      cateringName: x.catering_name, ownerName: x.owner_name,
+      razorpayOrderId: x.razorpay_order_id, razorpayPaymentId: x.razorpay_payment_id,
+      environment: x.environment, paymentMethod: x.payment_method,
+      createdAt: x.created_at, confirmedPaidAt: x.confirmed_paid_at
+    })), 'Payments retrieved');
+  } catch (e) { next(e); }
+});
+
 // ─── ADMIN PAYMENTS ──────────────────────────────────────────────────────────
 
 // Admin views all platform payments
@@ -1064,7 +1127,7 @@ app.put('/api/admin/owners/:id/verify', auth, guard('ROLE_ADMIN'), async (req, r
   try {
     const v = req.query.verified !== 'false';
     await pool.query('UPDATE owner_profiles SET verification_status=?,verified_at=? WHERE id=?',
-      [v ? 'VERIFIED' : 'PENDING_VERIFICATION', v ? new Date() : null, req.params.id]);
+      [v ? 'VERIFIED' : 'PENDING_VERIFICATION', v ? new Date().toISOString() : null, req.params.id]);
     const [r] = await pool.query('SELECT u.*,p.* FROM users u JOIN owner_profiles p ON p.user_id=u.id WHERE p.id=?', [req.params.id]);
     ok(res, profile(r[0]), v ? 'Owner verified successfully!' : 'Owner verification reverted to pending.');
   } catch (e) { next(e); }

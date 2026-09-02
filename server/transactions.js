@@ -4,7 +4,7 @@ const {pool, transaction} = require('./db');
 async function generateTransactionId() {
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const [[result]] = await pool.query(
-    `SELECT COALESCE(MAX(CAST(SUBSTRING(transaction_id, -5) AS UNSIGNED)), 0) + 1 as next_id 
+    `SELECT COALESCE(MAX(CAST(SUBSTR(transaction_id, -5) AS INTEGER)), 0) + 1 as next_id 
      FROM payment_records 
      WHERE transaction_id LIKE ?`,
     [`TXN-${today}-%`]
@@ -60,7 +60,7 @@ async function updateTransactionStatus(razorpayOrderId, status, paymentId, failu
     const updates = {
       payment_status: status,
       razorpay_payment_id: paymentId,
-      updated_at: new Date()
+      updated_at: new Date().toISOString()
     };
 
     if (failureReason) {
@@ -68,8 +68,8 @@ async function updateTransactionStatus(razorpayOrderId, status, paymentId, failu
     }
 
     if (status === 'SUCCESS') {
-      updates.confirmed_paid_at = new Date();
-      updates.marked_paid_at = new Date();
+      updates.confirmed_paid_at = new Date().toISOString();
+      updates.marked_paid_at = new Date().toISOString();
     }
 
     let sql = 'UPDATE payment_records SET ';
