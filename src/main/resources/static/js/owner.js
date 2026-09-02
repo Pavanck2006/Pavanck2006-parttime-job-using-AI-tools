@@ -7,8 +7,6 @@ const Owner = {
   _gpsLat: null,
   _gpsLng: null,
 
-,
-
   async loadDashboard() {
     try {
       await this.loadProfile();
@@ -900,7 +898,7 @@ async loadComplaints() {
     document.getElementById('gpsErrorMsg').textContent = msg;
     document.getElementById('gpsLocationError').classList.remove('d-none');
     document.getElementById('gpsLocationStatus').innerHTML = '<i class="bi bi-info-circle me-1"></i>Location capture failed. Try again.';
-  }
+  },
 
   // ─── OWNER TRANSACTION HISTORY ─────────────────────────────────────────
 
