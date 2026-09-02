@@ -1490,6 +1490,5 @@ if (require.main === module) {
   initializeDatabase().then(() => app.listen(PORT, '0.0.0.0', () => console.log(`PartTime Job Platform listening on http://0.0.0.0:${PORT}`)))
     .catch(e => { console.error('Database initialization failed:', e.message); process.exitCode = 1; });
 }
-(Add GPS location detection, seed jobs, and SQLite compatibility fixes)
 
 module.exports = app;
