@@ -8,11 +8,33 @@ const Owner = {
   _gpsLng: null,
 
   async useMyLocation(target) {
-    const btn = target === 'area' ? document.querySelector('button[onclick="Owner.useMyLocation(\'area\')"]') : document.querySelector('button[onclick="Owner.useMyLocation(\'detail\')"]');
+    // Find the GPS button by looking for the closest button with GPS icon
+    const allBtns = document.querySelectorAll('button.btn-outline-primary');
+    let btn = null;
+    allBtns.forEach(b => {
+      if (b.textContent.trim().includes('GPS')) {
+        // Match target: 'area' button is the first GPS button, 'detail' is the second
+        if (target === 'area' && !btn) btn = b;
+        if (target === 'detail' && !btn) btn = b;
+      }
+    });
+    // More precise: if target is detail and we found area's button, get next one
+    if (target === 'detail') {
+      const gpsBtns = Array.from(allBtns).filter(b => b.textContent.trim().includes('GPS'));
+      btn = gpsBtns[1] || gpsBtns[0];
+    }
+
     if (!navigator.geolocation) {
       App.showToast('Geolocation is not supported by your browser', 'danger');
       return;
     }
+
+    // Check if served over HTTPS (required in most browsers)
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      App.showToast('GPS requires HTTPS. Please access the site via https://', 'warning');
+      return;
+    }
+
     const originalHTML = btn ? btn.innerHTML : '';
     if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
     try {
@@ -23,12 +45,14 @@ const Owner = {
       const lng = pos.coords.longitude;
       this._gpsLat = lat;
       this._gpsLng = lng;
+      console.log('[GPS] Position obtained:', lat, lng);
 
       // Reverse geocode using server proxy (avoids CORS issues)
       const resp = await fetch(`/api/geocode/reverse?lat=${lat}&lon=${lng}`);
       const respData = await resp.json();
       const data = respData.data || respData;
       const addr = data.address || {};
+      console.log('[GPS] Reverse geocode result:', addr);
 
       // Build area (neighborhood / suburb / city)
       const areaParts = [addr.suburb || addr.neighbourhood || addr.quarter || '', addr.city || addr.town || addr.village || '', addr.state || ''];
@@ -39,10 +63,10 @@ const Owner = {
       const detailStr = detailParts.filter(Boolean).join(', ');
 
       if (target === 'area' || target === 'both') {
-        document.getElementById('jobWorkArea').value = areaStr;
+        document.getElementById('jobWorkArea').value = areaStr || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
       }
       if (target === 'detail' || target === 'both') {
-        document.getElementById('jobDetailedLocation').value = detailStr;
+        document.getElementById('jobDetailedLocation').value = detailStr || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
       }
 
       // Show coordinates
@@ -55,10 +79,12 @@ const Owner = {
 
       App.showToast('Location detected successfully!', 'success');
     } catch (err) {
+      console.error('[GPS] Error:', err);
       let msg = 'Failed to get location';
-      if (err.code === 1) msg = 'Location permission denied. Please allow location access in your browser settings.';
-      else if (err.code === 2) msg = 'Location unavailable. Please try again.';
+      if (err.code === 1) msg = 'Location permission denied. Please allow location access in your browser settings and try again.';
+      else if (err.code === 2) msg = 'Location unavailable. Make sure GPS is enabled on your device and try again.';
       else if (err.code === 3) msg = 'Location request timed out. Please try again.';
+      else if (err.message) msg = 'GPS error: ' + err.message;
       App.showToast(msg, 'danger');
     } finally {
       if (btn) { btn.disabled = false; btn.innerHTML = originalHTML; }
