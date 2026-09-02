@@ -1,75 +1,228 @@
 const fs = require('fs');
 const path = require('path');
-const mysql = require('mysql2/promise');
+const Database = require('better-sqlite3');
 
-const dbConfig = {host: process.env.DB_HOST || 'localhost', port: Number(process.env.DB_PORT || 3306), user: process.env.DB_USER || 'root', password: process.env.DB_PASSWORD || ''};
-const database = process.env.DB_NAME || 'parttimejob_db';
-const pool = mysql.createPool({...dbConfig, database, waitForConnections: true, connectionLimit: 10, dateStrings: true});
-function statements(file) { return fs.readFileSync(file, 'utf8').replace(/^--.*$/gm, '').split(';').map(s => s.trim()).filter(Boolean); }
-async function initializeDatabase() {
-  const setup = await mysql.createConnection(dbConfig);
-  await setup.query(`CREATE DATABASE IF NOT EXISTS \`${database.replace(/`/g, '``')}\``);
-  await setup.end();
-  const schema = path.join(__dirname, '..', 'src', 'main', 'resources', 'schema.sql');
-  for (const statement of statements(schema)) await pool.query(statement);
-  await pool.query(`CREATE TABLE IF NOT EXISTS complaint_messages (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    report_id BIGINT NOT NULL,
-    sender_id BIGINT NOT NULL,
-    message TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_chat_report FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE,
-    CONSTRAINT fk_chat_sender FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_chat_report_created (report_id, created_at)
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
-  // Migration: add location_photo_url if missing
-  try { await pool.query('ALTER TABLE catering_jobs ADD COLUMN location_photo_url TEXT'); } catch (e) { if (e.errno !== 1060) throw e; }
-  // Migration: add profile_photo_url to profile tables
-  try { await pool.query('ALTER TABLE student_profiles ADD COLUMN profile_photo_url TEXT'); } catch (e) { if (e.errno !== 1060) throw e; }
-  try { await pool.query('ALTER TABLE owner_profiles ADD COLUMN profile_photo_url TEXT'); } catch (e) { if (e.errno !== 1060) throw e; }
-  // Migration: add apply_deadline to catering_jobs
-  try { await pool.query('ALTER TABLE catering_jobs ADD COLUMN apply_deadline DATETIME NULL'); } catch (e) { if (e.errno !== 1060) throw e; }
-  // Migration: add latitude, longitude, location_address to catering_jobs
-  try { await pool.query('ALTER TABLE catering_jobs ADD COLUMN latitude DOUBLE NULL'); } catch (e) { if (e.errno !== 1060) throw e; }
-  try { await pool.query('ALTER TABLE catering_jobs ADD COLUMN longitude DOUBLE NULL'); } catch (e) { if (e.errno !== 1060) throw e; }
-  try { await pool.query('ALTER TABLE catering_jobs ADD COLUMN location_address TEXT'); } catch (e) { if (e.errno !== 1060) throw e; }
-  // Migration: add job_deletion_requests table
+
+const dbPath = path.join(__dirname, '..', 'data', 'parttimejob.db');
+const dataDir = path.join(__dirname, '..', 'data');
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+
+const db = new Database(dbPath);
+db.pragma('journal_mode = WAL');
+db.pragma('foreign_keys = ON');
+
+// ─── MySQL → SQLite SQL Transformer ────────────────────────────────────────
+
+function convertSchemaSql(sql) {
+  let s = sql;
+  s = s.replace(/ENGINE\s*=\s*InnoDB[^;]*/gi, '');
+  s = s.replace(/DEFAULT\s+CHARSET\s*=\s*\w+/gi, '');
+  s = s.replace(/COLLATE\s*=\s*\w+/gi, '');
+  s = s.replace(/\bBIGINT\b\s+AUTO_INCREMENT\s+PRIMARY\s+KEY/gi, 'INTEGER PRIMARY KEY AUTOINCREMENT');
+  s = s.replace(/\bBIGINT\b/gi, 'INTEGER');
+  s = s.replace(/\bVARCHAR\s*\([^)]+\)/gi, 'TEXT');
+  s = s.replace(/\bDOUBLE\b/gi, 'REAL');
+  s = s.replace(/\bDECIMAL\s*\([^)]+\)/gi, 'REAL');
+  s = s.replace(/\bBOOLEAN\b/gi, 'INTEGER');
+  s = s.replace(/,\s*ON\s+UPDATE\s+CURRENT_TIMESTAMP/gi, '');
+  s = s.replace(/ON\s+UPDATE\s+CURRENT_TIMESTAMP\s*,?/gi, '');
+  s = s.replace(/DEFAULT\s+TRUE/gi, 'DEFAULT 1');
+  s = s.replace(/DEFAULT\s+FALSE/gi, 'DEFAULT 0');
+  s = s.replace(/\bTIMESTAMP\b(?!\s+NULL\b)/gi, 'TEXT');
+  s = s.replace(/\bTIMESTAMP\s+NULL\b/gi, 'TEXT');
+  s = s.replace(/DEFAULT\s+CURRENT_TIMESTAMP/gi, "DEFAULT (datetime('now','localtime'))");
+  s = s.replace(/UNIQUE\s+KEY\s+\w+/gi, 'UNIQUE');
+  s = s.replace(/,?\s*INDEX\s+\w+\s*\([^)]+\)/gi, '');
+  s = s.replace(/,?\s*CONSTRAINT\s+\w+\s+FOREIGN\s+KEY[^)]+\)\s+REFERENCES[^)]+\)(?:\s+ON\s+DELETE\s+(?:CASCADE|SET\s+NULL))?/gi, '');
+  s = s.replace(/,\s*\)/g, '\n)');
+  return s;
+}
+
+function convertQuerySql(sql) {
+  let s = sql;
+  s = s.replace(/\bNOW\(\)/gi, "datetime('now','localtime')");
+  s = s.replace(/\bFOR\s+UPDATE\b/gi, '');
+  s = s.replace(/\bIF\s*\(([^,]+),\s*'([^']*)',\s*'([^']*)'\)/gi, "CASE WHEN $1 THEN '$2' ELSE '$3' END");
+  s = s.replace(/\bIF\s*\(([^,]+),\s*(\d+),\s*(\d+)\)/gi, "CASE WHEN $1 THEN $2 ELSE $3 END");
+
+  // ─── UPDATE ... JOIN ... SET ... WHERE ... ──────────────────────────────
+  const updateJoinMatch = s.match(
+    /^UPDATE\s+(\w+)\s+(\w+)\s+JOIN\s+(\w+)\s+(\w+)\s+ON\s+\w+\.(\w+)\s*=\s*\w+\.(\w+)\s+SET\s+(.+?)\s+WHERE\s+(.+)$/is
+  );
+  if (updateJoinMatch) {
+    const [, t1, a, t2, b, joinCol2, joinCol1, setClause, whereClause] = updateJoinMatch;
+    let newSet = setClause.replace(new RegExp(`\\b${a}\\.`, 'g'), '');
+    let newWhere = whereClause;
+    newWhere = newWhere.replace(
+      new RegExp(`(\\w+\\.)?(\\w+)\\s*=\\s*\\?`, 'g'),
+      (match, prefix, colName) => {
+        if (prefix && prefix.trim() === b + '.') {
+          return `${joinCol1} IN (SELECT ${joinCol2} FROM ${t2} WHERE ${colName}=?)`;
+        }
+        return match;
+      }
+    );
+    newWhere = newWhere.replace(new RegExp(`\\b${a}\\.`, 'g'), '');
+    s = `UPDATE ${t1} SET ${newSet} WHERE ${newWhere}`;
+  }
+
+  // ─── DELETE ... JOIN ... WHERE ... ──────────────────────────────────────
+  const deleteJoinMatch = s.match(
+    /^DELETE\s+\w+\s+FROM\s+(\w+)\s+(\w+)\s+JOIN\s+(\w+)\s+(\w+)\s+ON\s+\w+\.(\w+)\s*=\s*\w+\.(\w+)\s+WHERE\s+(.+)$/is
+  );
+  if (deleteJoinMatch) {
+    const [, t1, a, t2, b, joinCol2, joinCol1, whereClause] = deleteJoinMatch;
+    let newWhere = whereClause;
+    newWhere = newWhere.replace(
+      new RegExp(`(\\w+\\.)?(\\w+)\\s*=\\s*\\?`, 'g'),
+      (match, prefix, colName) => {
+        if (prefix && prefix.trim() === b + '.') {
+          return `${joinCol1} IN (SELECT ${joinCol2} FROM ${t2} WHERE ${colName}=?)`;
+        }
+        return match;
+      }
+    );
+    newWhere = newWhere.replace(new RegExp(`\\b${a}\\.`, 'g'), '');
+    s = `DELETE FROM ${t1} WHERE ${newWhere}`;
+  }
+
+  return s;
+}
+
+// ─── Query API (mysql2/promise compatible) ─────────────────────────────────
+
+function executeQuery(sql, params = []) {
+  // Convert JS booleans to integers for SQLite
+  const safeParams = (params || []).map(p => typeof p === 'boolean' ? (p ? 1 : 0) : p);
+  const converted = convertQuerySql(sql);
+  const trimmed = converted.trim();
+  const upperStart = trimmed.toUpperCase();
+
   try {
-    await pool.query(`CREATE TABLE IF NOT EXISTS job_deletion_requests (
-      id BIGINT AUTO_INCREMENT PRIMARY KEY,
-      job_id BIGINT NOT NULL,
-      owner_id BIGINT NOT NULL,
-      student_id BIGINT NOT NULL,
-      status VARCHAR(30) DEFAULT 'PENDING',
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      responded_at TIMESTAMP NULL,
-      CONSTRAINT fk_delreq_job FOREIGN KEY (job_id) REFERENCES catering_jobs(id) ON DELETE CASCADE,
-      CONSTRAINT fk_delreq_owner FOREIGN KEY (owner_id) REFERENCES owner_profiles(id) ON DELETE CASCADE,
-      CONSTRAINT fk_delreq_student FOREIGN KEY (student_id) REFERENCES student_profiles(id) ON DELETE CASCADE,
-      INDEX idx_delreq_job (job_id),
-      INDEX idx_delreq_student (student_id),
-      INDEX idx_delreq_status (status)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
-  } catch (e) { if (e.errno !== 1050) throw e; }
-  // Migration: add Razorpay columns to payment_records
-  try { await pool.query('ALTER TABLE payment_records ADD COLUMN razorpay_order_id VARCHAR(100) NULL'); } catch (e) { if (e.errno !== 1060) throw e; }
-  try { await pool.query('ALTER TABLE payment_records ADD COLUMN razorpay_payment_id VARCHAR(100) NULL UNIQUE'); } catch (e) { if (e.errno !== 1060 && e.errno !== 1061) throw e; }
-  try { await pool.query('ALTER TABLE payment_records ADD COLUMN razorpay_signature VARCHAR(255) NULL'); } catch (e) { if (e.errno !== 1060) throw e; }
-  try { await pool.query("ALTER TABLE payment_records ADD COLUMN environment VARCHAR(20) DEFAULT 'TEST'"); } catch (e) { if (e.errno !== 1060) throw e; }
-  try { await pool.query('ALTER TABLE payment_records ADD COLUMN payment_method VARCHAR(50) NULL'); } catch (e) { if (e.errno !== 1060) throw e; }
-  try { await pool.query('ALTER TABLE payment_records ADD COLUMN initiated_at TIMESTAMP NULL'); } catch (e) { if (e.errno !== 1060) throw e; }
-  // Migration: add transaction management fields
-  try { await pool.query('ALTER TABLE payment_records ADD COLUMN transaction_id VARCHAR(50) NULL UNIQUE'); } catch (e) { if (e.errno !== 1060 && e.errno !== 1061) throw e; }
-  try { await pool.query('ALTER TABLE payment_records ADD COLUMN failure_reason TEXT NULL'); } catch (e) { if (e.errno !== 1060) throw e; }
-  try { await pool.query('ALTER TABLE payment_records ADD COLUMN refund_id VARCHAR(100) NULL'); } catch (e) { if (e.errno !== 1060) throw e; }
-  try { await pool.query("ALTER TABLE payment_records ADD COLUMN currency VARCHAR(3) DEFAULT 'INR'"); } catch (e) { if (e.errno !== 1060) throw e; }
-  try { await pool.query('ALTER TABLE payment_records ADD INDEX idx_pay_razorpay_order (razorpay_order_id)'); } catch (e) { if (e.errno !== 1061 && e.errno !== 1060) throw e; }
-  try { await pool.query('ALTER TABLE payment_records ADD INDEX idx_pay_razorpay_payment (razorpay_payment_id)'); } catch (e) { if (e.errno !== 1061 && e.errno !== 1060) throw e; }
-  try { await pool.query('ALTER TABLE payment_records ADD INDEX idx_pay_created_at (created_at)'); } catch (e) { if (e.errno !== 1061 && e.errno !== 1060) throw e; }
-  if (process.env.RUN_SEED !== 'false') {
-    const seed = path.join(__dirname, '..', 'src', 'main', 'resources', 'data.sql');
-    if (fs.existsSync(seed)) for (const statement of statements(seed)) try { await pool.query(statement); } catch (e) { if (![1062, 1451, 1452].includes(e.errno)) throw e; }
+    if (upperStart.startsWith('SELECT')) {
+      return [db.prepare(converted).all(...safeParams), []];
+    } else if (upperStart.startsWith('INSERT')) {
+      const result = db.prepare(converted).run(...safeParams);
+      return [{ insertId: Number(result.lastInsertRowid), affectedRows: result.changes }, []];
+    } else if (upperStart.startsWith('UPDATE') || upperStart.startsWith('DELETE')) {
+      const result = db.prepare(converted).run(...safeParams);
+      return [{ affectedRows: result.changes }, []];
+    } else {
+      db.exec(converted);
+      return [{}, []];
+    }
+  } catch (e) {
+    if (e.code === 'SQLITE_CONSTRAINT_UNIQUE' || e.code === 'SQLITE_CONSTRAINT') {
+      if (/^\s*INSERT\s+OR\s+IGNORE\b/i.test(trimmed)) {
+        return [{ insertId: 0, affectedRows: 0 }, []];
+      }
+    }
+    throw e;
+(Add GPS location detection, seed jobs, and SQLite compatibility fixes)
   }
 }
-async function transaction(work) { const connection = await pool.getConnection(); try { await connection.beginTransaction(); const result = await work(connection); await connection.commit(); return result; } catch (e) { await connection.rollback(); throw e; } finally { connection.release(); } }
-module.exports = {pool, initializeDatabase, transaction};
+
+const pool = {
+  query(sqlOrOpts, params) {
+    const sql = typeof sqlOrOpts === 'string' ? sqlOrOpts : (sqlOrOpts.sql || sqlOrOpts);
+    return Promise.resolve(executeQuery(sql, params || []));
+  },
+  getConnection() {
+    return {
+      query(sql, params) { return Promise.resolve(executeQuery(sql, params || [])); },
+      beginTransaction() { db.exec('BEGIN'); return Promise.resolve(); },
+      commit() { db.exec('COMMIT'); return Promise.resolve(); },
+      rollback() { try { db.exec('ROLLBACK'); } catch(e) {} return Promise.resolve(); },
+      release() {},
+    };
+  },
+  end() { db.close(); return Promise.resolve(); }
+};
+
+// ─── Database Initialization ───────────────────────────────────────────────
+
+let initialized = false;
+
+async function initializeDatabase() {
+  if (initialized) return;
+  initialized = true;
+
+  // Read and convert schema
+  const schemaPath = path.join(__dirname, '..', 'src', 'main', 'resources', 'schema.sql');
+  const rawSchema = fs.readFileSync(schemaPath, 'utf8');
+  const statements = rawSchema
+    .replace(/--.*$/gm, '')
+    .split(';')
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+
+  for (const stmt of statements) {
+    const converted = convertSchemaSql(stmt);
+    if (converted.trim()) {
+      try { db.exec(converted); } catch (e) {
+        if (!e.message.includes('already exists')) {
+          console.error('Schema error:', e.message.substring(0, 100));
+        }
+      }
+    }
+  }
+
+  // Add complaint_messages table
+  db.exec(`CREATE TABLE IF NOT EXISTS complaint_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    report_id INTEGER NOT NULL,
+    sender_id INTEGER NOT NULL,
+    message TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now','localtime')),
+    FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE,
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+  )`);
+
+  // Migrations
+  try { db.exec('ALTER TABLE catering_jobs ADD COLUMN location_photo_url TEXT'); } catch(e) {}
+  try { db.exec('ALTER TABLE student_profiles ADD COLUMN profile_photo_url TEXT'); } catch(e) {}
+  try { db.exec('ALTER TABLE owner_profiles ADD COLUMN profile_photo_url TEXT'); } catch(e) {}
+
+  // Seed data
+  if (process.env.RUN_SEED !== 'false') {
+    const seedPath = path.join(__dirname, '..', 'src', 'main', 'resources', 'data.sql');
+    if (fs.existsSync(seedPath)) {
+      const rawSeed = fs.readFileSync(seedPath, 'utf8');
+      const convertedSeed = rawSeed
+        .replace(/--.*$/gm, '')
+        .replace(/\bINSERT\s+IGNORE\s+INTO\b/gi, 'INSERT OR IGNORE INTO')
+        .replace(/\bNOW\(\)/gi, "datetime('now','localtime')");
+      
+      const seedStatements = convertedSeed
+        .split(';')
+        .map(s => s.trim())
+        .filter(s => s.length > 0 && s.toUpperCase().startsWith('INSERT'));
+
+      for (const stmt of seedStatements) {
+        try {
+          db.exec(stmt);
+        } catch (e) {
+          if (!e.message.includes('UNIQUE constraint') && !e.message.includes('PRIMARY KEY constraint')) {
+            console.warn('Seed warning:', e.message.substring(0, 120));
+          }
+        }
+      }
+    }
+  }
+
+  console.log('SQLite database initialized successfully');
+}
+
+async function transaction(work) {
+  try {
+    db.exec('BEGIN');
+    const result = await work(pool);
+    db.exec('COMMIT');
+    return result;
+  } catch (e) {
+    try { db.exec('ROLLBACK'); } catch(x) {}
+    throw e;
+  }
+}
+
+module.exports = { pool, initializeDatabase, transaction };

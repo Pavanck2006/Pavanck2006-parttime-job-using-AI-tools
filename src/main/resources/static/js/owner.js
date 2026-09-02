@@ -4,6 +4,66 @@
 
 const Owner = {
   currentActiveJobId: null,
+  _gpsLat: null,
+  _gpsLng: null,
+
+  async useMyLocation(target) {
+    const btn = target === 'area' ? document.querySelector('button[onclick="Owner.useMyLocation(\'area\')"]') : document.querySelector('button[onclick="Owner.useMyLocation(\'detail\')"]');
+    if (!navigator.geolocation) {
+      App.showToast('Geolocation is not supported by your browser', 'danger');
+      return;
+    }
+    const originalHTML = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>'; }
+    try {
+      const pos = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
+      });
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      this._gpsLat = lat;
+      this._gpsLng = lng;
+
+      // Reverse geocode using server proxy (avoids CORS issues)
+      const resp = await fetch(`/api/geocode/reverse?lat=${lat}&lon=${lng}`);
+      const respData = await resp.json();
+      const data = respData.data || respData;
+      const addr = data.address || {};
+
+      // Build area (neighborhood / suburb / city)
+      const areaParts = [addr.suburb || addr.neighbourhood || addr.quarter || '', addr.city || addr.town || addr.village || '', addr.state || ''];
+      const areaStr = areaParts.filter(Boolean).join(', ');
+
+      // Build detailed address
+      const detailParts = [addr.house_number ? (addr.house_number + ' ') : '', addr.road || '', addr.suburb || addr.neighbourhood || '', addr.city || addr.town || addr.village || ''];
+      const detailStr = detailParts.filter(Boolean).join(', ');
+
+      if (target === 'area' || target === 'both') {
+        document.getElementById('jobWorkArea').value = areaStr;
+      }
+      if (target === 'detail' || target === 'both') {
+        document.getElementById('jobDetailedLocation').value = detailStr;
+      }
+
+      // Show coordinates
+      const coordsEl = document.getElementById('gpsCoords');
+      const coordsText = document.getElementById('gpsCoordsText');
+      if (coordsEl && coordsText) {
+        coordsText.textContent = `GPS location detected: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+        coordsEl.classList.remove('d-none');
+      }
+
+      App.showToast('Location detected successfully!', 'success');
+    } catch (err) {
+      let msg = 'Failed to get location';
+      if (err.code === 1) msg = 'Location permission denied. Please allow location access in your browser settings.';
+      else if (err.code === 2) msg = 'Location unavailable. Please try again.';
+      else if (err.code === 3) msg = 'Location request timed out. Please try again.';
+      App.showToast(msg, 'danger');
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = originalHTML; }
+    }
+  },
 
   async loadDashboard() {
     try {

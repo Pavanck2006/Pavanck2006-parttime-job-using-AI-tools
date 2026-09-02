@@ -1237,14 +1237,28 @@
 
                 <div class="col-md-6">
                   <label class="form-label small fw-semibold">General Area *</label>
-                  <input type="text" id="jobWorkArea" class="form-control" placeholder="e.g. Kengeri, Bangalore" required>
-                  <small class="text-muted" style="font-size: 0.75rem;">Visible to all browsing students</small>
+                  <div class="input-group">
+                    <input type="text" id="jobWorkArea" class="form-control" placeholder="e.g. Kengeri, Bangalore" required>
+                    <button type="button" class="btn btn-outline-primary" onclick="Owner.useMyLocation('area')" title="Use my current GPS location">
+                      <i class="bi bi-geo-alt-fill"></i> GPS
+                    </button>
+                  </div>
+                  <small class="text-muted" style="font-size: 0.75rem;">Visible to all browsing students. Click GPS to auto-detect.</small>
                 </div>
 
                 <div class="col-12">
                   <label class="form-label small fw-semibold">Detailed Venue Address *</label>
-                  <input type="text" id="jobDetailedLocation" class="form-control" placeholder="e.g. Shubha Kalyana Mantapa, 8th Cross Kengeri" required>
-                  <small class="text-muted" style="font-size: 0.75rem;">🔒 Protected: Only revealed to students you accept</small>
+                  <div class="input-group">
+                    <input type="text" id="jobDetailedLocation" class="form-control" placeholder="e.g. Shubha Kalyana Mantapa, 8th Cross Kengeri" required>
+                    <button type="button" class="btn btn-outline-primary" onclick="Owner.useMyLocation(&apos;detail&apos;)" title="Use my current GPS location">
+                      <i class="bi bi-geo-alt-fill"></i> GPS
+                    </button>
+                  </div>
+
+                  <small class="text-muted" style="font-size: 0.75rem;">🔒 Only revealed to students you accept. Click GPS to auto-detect.</small>
+                </div>
+                <div id="gpsCoords" class="col-12 d-none">
+                  <small class="text-success"><i class="bi bi-check-circle-fill me-1"></i><span id="gpsCoordsText"></span></small>
                 </div>
 
                 <div class="col-md-4">

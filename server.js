@@ -173,6 +173,21 @@ app.post('/api/auth/login', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// ─── GEOCODING PROXY ───────────────────────────────────────────────────────
+app.get('/api/geocode/reverse', async (req, res, next) => {
+  try {
+    const { lat, lon } = req.query;
+    if (!lat || !lon) return fail(res, 400, 'lat and lon query parameters required');
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=18&addressdetails=1`;
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': 'PartTimeJobPlatform/1.0', 'Accept-Language': 'en' }
+    });
+    if (!resp.ok) return fail(res, 502, 'Geocoding service unavailable');
+    const data = await resp.json();
+    ok(res, data);
+  } catch (e) { next(e); }
+});
+
 // ─── JOBS ────────────────────────────────────────────────────────────────────
 
 const jobSql = `SELECT j.*,o.catering_name,o.verification_status,u.id owner_user_id,u.full_name owner_name FROM catering_jobs j JOIN owner_profiles o ON o.id=j.owner_id JOIN users u ON u.id=o.user_id`;
@@ -1475,5 +1490,6 @@ if (require.main === module) {
   initializeDatabase().then(() => app.listen(PORT, '0.0.0.0', () => console.log(`PartTime Job Platform listening on http://0.0.0.0:${PORT}`)))
     .catch(e => { console.error('Database initialization failed:', e.message); process.exitCode = 1; });
 }
+(Add GPS location detection, seed jobs, and SQLite compatibility fixes)
 
 module.exports = app;
