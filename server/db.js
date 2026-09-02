@@ -118,7 +118,6 @@ function executeQuery(sql, params = []) {
       }
     }
     throw e;
-(Add GPS location detection, seed jobs, and SQLite compatibility fixes)
   }
 }
 
