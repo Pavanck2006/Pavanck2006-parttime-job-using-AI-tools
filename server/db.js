@@ -212,6 +212,10 @@ async function initializeDatabase() {
   try { db.exec('ALTER TABLE payment_records ADD COLUMN initiated_at TEXT'); } catch(e) {}
   try { db.exec("ALTER TABLE payment_records ADD COLUMN updated_at TEXT DEFAULT (datetime('now','localtime'))"); } catch(e) {}
 
+  // Job lifecycle migrations
+  try { db.exec('ALTER TABLE catering_jobs ADD COLUMN owner_decision TEXT'); } catch(e) {}
+  try { db.exec("ALTER TABLE catering_jobs ADD COLUMN owner_decision_at TEXT"); } catch(e) {}
+
   // Seed data
   if (process.env.RUN_SEED !== 'false') {
     const seedPath = path.join(__dirname, '..', 'src', 'main', 'resources', 'data.sql');

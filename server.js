@@ -210,7 +210,7 @@ function job(r, unlocked = false) {
     longitude: r.longitude || null,
     locationAddress: r.location_address || null,
     applyDeadline: r.apply_deadline || null,
-    status: r.status, cateringName: r.catering_name,
+    status: r.status, ownerDecision: r.owner_decision || null, ownerDecisionAt: r.owner_decision_at || null, cateringName: r.catering_name,
     ownerId: r.owner_user_id,
     ownerVerified: r.verification_status === 'VERIFIED',
     createdAt: r.created_at
@@ -269,7 +269,7 @@ function profile(r) {
 
 async function listJobs(req, res, next) {
   try {
-    let sql = `${jobSql} WHERE j.status='OPEN' AND u.is_suspended=FALSE AND (j.apply_deadline IS NULL OR j.apply_deadline > NOW())`, v = [];
+    let sql = `${jobSql} WHERE j.status='OPEN' AND u.is_suspended=FALSE AND (j.apply_deadline IS NULL OR j.apply_deadline > NOW()) AND (j.owner_decision IS NULL OR j.owner_decision != 'REMOVED')`, v = [];
     const q = req.query;
     if (q.area || q.location) { sql += ' AND LOWER(j.work_area) LIKE LOWER(?)'; v.push(`%${q.area || q.location}%`); }
     if (q.workType) { sql += ' AND j.work_type=?'; v.push(q.workType); }
@@ -290,6 +290,19 @@ app.get('/api/public/google-maps-key', (req, res) => {
 
 app.get('/api/public/jobs', listJobs);
 app.get('/api/public/jobs/recommended', listJobs);
+
+// Full jobs endpoint - returns jobs where all positions are filled
+app.get('/api/public/jobs/full', async (req, res, next) => {
+  try {
+    let sql = `${jobSql} WHERE j.status IN ('OPEN','FILLED') AND j.workers_selected >= j.workers_required AND u.is_suspended=0`, v = [];
+    const q = req.query;
+    if (q.area || q.location) { sql += ' AND LOWER(j.work_area) LIKE LOWER(?)'; v.push(`%${q.area || q.location}%`); }
+    if (q.workType) { sql += ' AND j.work_type=?'; v.push(q.workType); }
+    sql += ' ORDER BY j.job_date DESC,j.created_at DESC';
+    const [r] = await pool.query(sql, v);
+    ok(res, r.map(x => ({...job(x), isFullyBooked: true})), 'Fully booked jobs retrieved');
+  } catch (e) { next(e); }
+});
 
 app.get('/api/public/jobs/:id', async (req, res, next) => {
   try {
@@ -349,6 +362,8 @@ app.post('/api/student/jobs/:jobId/apply', auth, guard('ROLE_STUDENT'), async (r
       const [[s]] = await c.query('SELECT id FROM student_profiles WHERE user_id=?', [req.user.id]);
       const [[j]] = await c.query('SELECT * FROM catering_jobs WHERE id=? FOR UPDATE', [req.params.jobId]);
       if (!s || !j || j.status !== 'OPEN') throw Object.assign(new Error('Job is not available'), {status: 400});
+      // Check if job is fully booked
+      if (j.workers_selected >= j.workers_required) throw Object.assign(new Error('Applications are closed because all required workers have been hired.'), {status: 400});
       // Check application deadline
       if (j.apply_deadline) {
         const deadline = new Date(j.apply_deadline);
@@ -533,9 +548,10 @@ app.get('/api/owner/jobs', auth, guard('ROLE_OWNER'), async (req, res, next) => 
       const timeCrossed = now > jobEnd;
 
       const deadlinePassed = !!(x.apply_deadline && new Date(x.apply_deadline) <= now);
-      // canDelete = (no one hired) OR (time crossed) OR (deadline passed) OR (cancellation requested)
-      const canDelete = !hasAccepted || timeCrossed || deadlinePassed || hasPendingCancel;
-      return {...job(x, true), canDelete, hasPendingDeletionRequest: hasPendingCancel};
+      const isFull = x.workers_selected >= x.workers_required;
+      const needsDecision = deadlinePassed && !isFull && !x.owner_decision;
+      const canDelete = !hasAccepted || timeCrossed || deadlinePassed || hasPendingCancel || x.status === 'REMOVED';
+      return {...job(x, true), canDelete, hasPendingDeletionRequest: hasPendingCancel, isFull, deadlinePassed, needsDecision};
     }));
   } catch (e) { next(e); }
 });
@@ -966,6 +982,7 @@ app.get('/api/owner/complaints', auth, guard('ROLE_OWNER'), async (req, res, nex
 app.put('/api/owner/applications/:id/payment', auth, guard('ROLE_OWNER'), async (req, res, next) => {
   try {
     const oid = await ownerId(req);
+    await checkPaymentTiming(req.params.id);
     const b = req.body;
     const status = (b.status || 'PAID').toUpperCase();
     const data = await transaction(async c => {
@@ -1504,6 +1521,91 @@ app.delete('/api/account', auth, async (req, res, next) => {
 });
 
 // ─── STATIC FILES & ERROR HANDLING ───────────────────────────────────────────
+
+
+// ─── JOB LIFECYCLE: DEADLINE DETECTION ──────────────────────────────────────
+
+async function detectDeadlinePassedJobs() {
+  try {
+    const [jobs] = await pool.query(
+      "SELECT j.id, j.owner_id, j.title, j.workers_required, j.workers_selected, j.apply_deadline, u.id owner_user_id FROM catering_jobs j JOIN owner_profiles o ON o.id=j.owner_id JOIN users u ON u.id=o.user_id WHERE j.status='OPEN' AND j.apply_deadline IS NOT NULL AND j.apply_deadline <= datetime('now','localtime') AND j.workers_selected < j.workers_required AND (j.owner_decision IS NULL OR j.owner_decision != 'CONTINUE')"
+    );
+    for (const j of jobs) {
+      const [[existingNotif]] = await pool.query(
+        "SELECT id FROM notifications WHERE recipient_id=? AND type='DEADLINE_REACHED' AND related_entity_id=? AND created_at > datetime('now','-1 day','localtime')",
+        [j.owner_user_id, j.id]
+      );
+      if (!existingNotif) {
+        await pool.query(
+          "INSERT INTO notifications (recipient_id,title,message,type,related_entity_id) VALUES (?,?,?,?,?)",
+          [j.owner_user_id, 'Application Deadline Reached',
+           'Your job has not received all required workers (' + j.workers_selected + '/' + j.workers_required + '). Please choose whether to continue or remove the job.',
+           'DEADLINE_REACHED', j.id]
+        );
+      }
+    }
+  } catch (e) {
+    console.error('[LIFECYCLE] Deadline detection error:', e.message);
+  }
+}
+setInterval(detectDeadlinePassedJobs, 5 * 60 * 1000);
+
+app.put('/api/owner/jobs/:id/decision', auth, guard('ROLE_OWNER'), async (req, res, next) => {
+  try {
+    const oid = await ownerId(req);
+    const { decision } = req.body;
+    if (!decision || !['CONTINUE', 'REMOVE'].includes(decision.toUpperCase())) {
+      return fail(res, 400, 'Decision must be CONTINUE or REMOVE');
+    }
+    const [[jobRec]] = await pool.query('SELECT * FROM catering_jobs WHERE id=? AND owner_id=?', [req.params.id, oid]);
+    if (!jobRec) return fail(res, 404, 'Job not found');
+    const now = new Date().toISOString();
+    if (decision.toUpperCase() === 'CONTINUE') {
+      await pool.query("UPDATE catering_jobs SET owner_decision='CONTINUE', owner_decision_at=? WHERE id=?", [now, req.params.id]);
+      const [acceptedApps] = await pool.query("SELECT su.id student_user_id FROM job_applications a JOIN student_profiles sp ON sp.id=a.student_id JOIN users su ON su.id=sp.user_id WHERE a.job_id=? AND a.status='ACCEPTED'", [req.params.id]);
+      for (const app of acceptedApps) {
+        await pool.query("INSERT INTO notifications (recipient_id,title,message,type,related_entity_id) VALUES (?,?,?,?,?)", [app.student_user_id, 'Job Confirmed', 'The owner confirmed the job will proceed.', 'JOB_CONTINUED', jobRec.id]);
+      }
+      ok(res, null, 'Job continued successfully');
+    } else {
+      await pool.query("UPDATE catering_jobs SET owner_decision='REMOVED', owner_decision_at=?, status='REMOVED' WHERE id=?", [now, req.params.id]);
+      await pool.query("UPDATE job_applications SET status='CANCELLED' WHERE job_id=? AND status='APPLIED'", [req.params.id]);
+      const [pendingApps] = await pool.query("SELECT su.id student_user_id FROM job_applications a JOIN student_profiles sp ON sp.id=a.student_id JOIN users su ON su.id=sp.user_id WHERE a.job_id=?", [req.params.id]);
+      for (const app of pendingApps) {
+        await pool.query("INSERT INTO notifications (recipient_id,title,message,type,related_entity_id) VALUES (?,?,?,?,?)", [app.student_user_id, 'Job Removed', 'The job has been removed by the owner.', 'JOB_REMOVED', jobRec.id]);
+      }
+      ok(res, null, 'Job removed successfully');
+    }
+  } catch (e) { next(e); }
+});
+
+app.put('/api/owner/jobs/:id/remove', auth, guard('ROLE_OWNER'), async (req, res, next) => {
+  try {
+    const oid = await ownerId(req);
+    const [[jobRec]] = await pool.query('SELECT * FROM catering_jobs WHERE id=? AND owner_id=?', [req.params.id, oid]);
+    if (!jobRec) return fail(res, 404, 'Job not found');
+    if (jobRec.status === 'REMOVED') return fail(res, 400, 'Job is already removed');
+    const now = new Date().toISOString();
+    await pool.query("UPDATE catering_jobs SET owner_decision='REMOVED', owner_decision_at=?, status='REMOVED' WHERE id=?", [now, req.params.id]);
+    await pool.query("UPDATE job_applications SET status='CANCELLED' WHERE job_id=? AND status='APPLIED'", [req.params.id]);
+    const [allApps] = await pool.query("SELECT su.id student_user_id FROM job_applications a JOIN student_profiles sp ON sp.id=a.student_id JOIN users su ON su.id=sp.user_id WHERE a.job_id=?", [req.params.id]);
+    for (const app of allApps) {
+      await pool.query("INSERT INTO notifications (recipient_id,title,message,type,related_entity_id) VALUES (?,?,?,?,?)", [app.student_user_id, 'Job Removed', 'The job has been removed by the owner.', 'JOB_REMOVED', jobRec.id]);
+    }
+    ok(res, null, 'Job removed successfully');
+  } catch (e) { next(e); }
+});
+
+async function checkPaymentTiming(applicationId) {
+  const [[app]] = await pool.query('SELECT j.job_date, j.end_time, a.status FROM job_applications a JOIN catering_jobs j ON j.id=a.job_id WHERE a.id=?', [applicationId]);
+  if (!app) throw Object.assign(new Error('Application not found'), {status: 404});
+  const jobDateTime = new Date(app.job_date + 'T' + (app.end_time || '23:59:59'));
+  const paymentAvailableAt = new Date(jobDateTime.getTime() - 60 * 60 * 1000);
+  if (new Date() < paymentAvailableAt) {
+    throw Object.assign(new Error('Payment is not available yet. It becomes available 1 hour before job completion.'), {status: 400});
+  }
+  return true;
+}
 
 app.use('/uploads', express.static(uploadsDir));
 app.use(express.static(staticDir));

@@ -169,11 +169,14 @@ async updateProfile(e) {
 
       container.innerHTML = jobs.map(job => {
         let statusBadge = `<span class="badge bg-success">OPEN</span>`;
-        if (job.status === 'FILLED') statusBadge = `<span class="badge bg-warning text-dark">SLOTS FILLED (${job.workersSelected}/${job.workersRequired})</span>`;
+        if (job.isFull) statusBadge = `<span class="badge bg-warning text-dark"><i class="bi bi-people-fill me-1"></i>FULL (${job.workersSelected}/${job.workersRequired})</span>`;
+        if (job.needsDecision) statusBadge = `<span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>ACTION REQUIRED</span>`;
+        if (job.status === 'REMOVED') statusBadge = `<span class="badge bg-secondary">REMOVED</span>`;
         if (job.status === 'COMPLETED') statusBadge = `<span class="badge bg-primary">COMPLETED</span>`;
         if (job.status === 'CANCELLED') statusBadge = `<span class="badge bg-secondary">CANCELLED</span>`;
+        if (job.ownerDecision === 'CONTINUE') statusBadge += ` <span class="badge bg-success-subtle text-success border border-success-subtle">Continued</span>`;
 
-        const isEditable = job.status === 'OPEN' || job.status === 'FILLED';
+        const isEditable = (job.status === 'OPEN' || job.status === 'FILLED') && job.status !== 'REMOVED';
 
         return `
           <div class="card mb-3 shadow-sm border-0 border-start border-4 ${job.status === 'COMPLETED' ? 'border-primary' : job.status === 'CANCELLED' ? 'border-secondary' : 'border-success'}">
@@ -198,9 +201,18 @@ async updateProfile(e) {
                 <div class="col-lg-3 mb-2 mb-lg-0 text-lg-center">
                   <div class="fw-bold fs-5 text-success">₹${job.paymentAmount}</div>                    <span class="badge ${job.onSpotPayment ? 'bg-success-subtle text-success' : 'bg-primary-subtle text-primary'} border">${job.paymentTypeDisplayName || 'On-Spot'}</span>
                   <div class="small text-muted mt-1">Hired: <strong>${job.workersSelected}</strong> / ${job.workersRequired} workers</div>
+                  ${job.needsDecision ? `<div class="small text-danger fw-semibold mt-1"><i class="bi bi-exclamation-circle me-1"></i>Deadline passed - decision needed</div>` : ''}
                 </div>
 
                 <div class="col-lg-4 text-lg-end d-flex flex-wrap gap-1 justify-content-lg-end">
+                  ${job.needsDecision ? `
+                    <button class="btn btn-sm btn-success" onclick="Owner.makeDecision(${job.id}, 'CONTINUE')">
+                      <i class="bi bi-check-circle me-1"></i>Continue
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="Owner.makeDecision(${job.id}, 'REMOVE')">
+                      <i class="bi bi-trash me-1"></i>Remove
+                    </button>
+                  ` : ''}
                   <button class="btn btn-sm btn-primary-custom" onclick="Owner.openApplicantsModal(${job.id}, '${App.escapeHtml(job.title)}')">
                     <i class="bi bi-people-fill me-1"></i>Applicants (${job.applications?.length || 0})
                   </button>
@@ -814,6 +826,31 @@ async loadComplaints() {
     document.getElementById('ownerProfileForm')?.classList.add('d-none');
     document.getElementById('owProfileView')?.classList.remove('d-none');
     document.getElementById('owProfEditBtn')?.classList.remove('d-none');
+  },
+
+  async makeDecision(jobId, decision) {
+    const msg = decision === 'CONTINUE'
+      ? 'Continue this job even though not all positions are filled? The accepted workers will proceed as planned.'
+      : 'Remove this job? It will no longer be available to students and pending applications will be cancelled.';
+    if (!confirm(msg)) return;
+    try {
+      await API.owner.makeDecision(jobId, decision);
+      App.showToast(decision === 'CONTINUE' ? 'Job confirmed to continue!' : 'Job removed successfully.', 'success');
+      await this.loadMyJobs();
+    } catch (err) {
+      App.showToast(err.message || 'Failed to process decision', 'danger');
+    }
+  },
+
+  async removeJobConfirm(jobId, jobTitle) {
+    if (!confirm('Are you sure you want to remove "' + jobTitle + '"? It will no longer be available to students.')) return;
+    try {
+      await API.owner.removeJob(jobId);
+      App.showToast('Job removed successfully!', 'success');
+      await this.loadMyJobs();
+    } catch (err) {
+      App.showToast(err.message || 'Failed to remove job', 'danger');
+    }
   },
 
   // ─── Browser GPS Location Capture ─────────────────────────────────────────

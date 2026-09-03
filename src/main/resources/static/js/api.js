@@ -106,6 +106,9 @@ const API = {
     getRecommendedJobs() {
       return API.request('/public/jobs/recommended');
     },
+    getFullJobs() {
+      return API.request('/public/jobs/full');
+    },
     getJobDetails(id) {
       return API.request(`/public/jobs/${id}`);
     }
@@ -197,6 +200,17 @@ const API = {
     },
     getMyJobs() {
       return API.request('/owner/jobs');
+    },
+    makeDecision(jobId, decision) {
+      return API.request('/owner/jobs/' + jobId + '/decision', {
+        method: 'PUT',
+        body: JSON.stringify({ decision })
+      });
+    },
+    removeJob(jobId) {
+      return API.request('/owner/jobs/' + jobId + '/remove', {
+        method: 'PUT'
+      });
     },
     getClosedJobs() {
       return API.request('/owner/jobs/closed');

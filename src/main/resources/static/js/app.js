@@ -274,14 +274,17 @@ const App = {
     container.innerHTML = jobs.map(job => this.renderJobCard(job)).join('');
   },
 
-  renderJobCard(job, context = 'public') {
+  renderJobCard(job, context = 'public', isFullyBooked = false) {
     const user = API.getCurrentUser();
     const isStudent = user && user.role === 'ROLE_STUDENT';
     const isOwner = user && user.role === 'ROLE_OWNER';
 
+    const jobFull = isFullyBooked || job.isFullyBooked || (job.workersRequired && job.workersSelected >= job.workersRequired);
     let applyBtn = '';
     if (job.userApplied) {
       applyBtn = `<button class="btn btn-sm btn-outline-success w-100" disabled><i class="bi bi-check-circle me-1"></i>Applied (${job.userApplicationStatus})</button>`;
+    } else if (jobFull) {
+      applyBtn = `<span class="badge bg-warning text-dark px-3 py-2 w-100 d-block text-center"><i class="bi bi-people-fill me-1"></i>Fully Booked</span>`;
     } else if (isStudent) {
       applyBtn = `<button class="btn btn-sm btn-primary-custom w-100" onclick="App.openApplyModal(${job.id}, '${App.escapeHtml(job.title)}', ${job.paymentAmount})"><i class="bi bi-send-check me-1"></i>Apply Now</button>`;
     } else if (!user) {
