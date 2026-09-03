@@ -525,6 +525,7 @@ app.get('/api/owner/jobs', auth, guard('ROLE_OWNER'), async (req, res, next) => 
     const jobIds = r.map(x => x.id);
     let acceptedMap = {};
     let cancellationMap = {};
+    let applicationCountMap = {};
     if (jobIds.length > 0) {
       const placeholders = jobIds.map(() => '?').join(',');
       const [acceptedRows] = await pool.query(
@@ -538,6 +539,12 @@ app.get('/api/owner/jobs', auth, guard('ROLE_OWNER'), async (req, res, next) => 
         jobIds
       );
       delRows.forEach(row => { cancellationMap[row.job_id] = row.cnt > 0; });
+
+      const [appCountRows] = await pool.query(
+        `SELECT job_id, COUNT(*) cnt FROM job_applications WHERE job_id IN (${placeholders}) GROUP BY job_id`,
+        jobIds
+      );
+      appCountRows.forEach(row => { applicationCountMap[row.job_id] = row.cnt; });
     }
     // Compute canDelete per job based on 3 scenarios
     const now = new Date();
@@ -551,7 +558,7 @@ app.get('/api/owner/jobs', auth, guard('ROLE_OWNER'), async (req, res, next) => 
       const isFull = x.workers_selected >= x.workers_required;
       const needsDecision = deadlinePassed && !isFull && !x.owner_decision;
       const canDelete = !hasAccepted || timeCrossed || deadlinePassed || hasPendingCancel || x.status === 'REMOVED';
-      return {...job(x, true), canDelete, hasPendingDeletionRequest: hasPendingCancel, isFull, deadlinePassed, needsDecision};
+      return {...job(x, true), canDelete, hasPendingDeletionRequest: hasPendingCancel, isFull, deadlinePassed, needsDecision, applicationCount: applicationCountMap[x.id] || 0};
     }));
   } catch (e) { next(e); }
 });

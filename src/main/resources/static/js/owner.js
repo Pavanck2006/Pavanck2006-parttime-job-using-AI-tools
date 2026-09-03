@@ -214,7 +214,7 @@ async updateProfile(e) {
                     </button>
                   ` : ''}
                   <button class="btn btn-sm btn-primary-custom" onclick="Owner.openApplicantsModal(${job.id}, '${App.escapeHtml(job.title)}')">
-                    <i class="bi bi-people-fill me-1"></i>Applicants (${job.applications?.length || 0})
+                    <i class="bi bi-people-fill me-1"></i>Applicants (${job.applicationCount || 0})
                   </button>
                   
                   ${isEditable ? `
