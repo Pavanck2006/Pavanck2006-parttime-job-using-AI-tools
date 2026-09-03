@@ -773,11 +773,6 @@
           </button>
         </li>
         <li class="nav-item">
-          <button class="nav-link" data-bs-toggle="pill" data-bs-target="#st-tab-full">
-            <i class="bi bi-people-fill me-1"></i>Fully Booked
-          </button>
-        </li>
-        <li class="nav-item">
           <button class="nav-link" data-bs-toggle="pill" data-bs-target="#st-tab-accepted">
             <i class="bi bi-calendar2-check-fill me-1"></i>Accepted Shifts
           </button>
@@ -820,15 +815,6 @@
             <h5 class="fw-bold mb-0">Recommended for your area &amp; skills</h5>
           </div>
           <div id="stRecommendedList" class="row"></div>
-        </div>
-
-        <!-- 2b. Fully Booked Jobs -->
-        <div class="tab-pane fade" id="st-tab-full">
-          <div class="mb-3">
-            <h5 class="fw-bold mb-2"><i class="bi bi-people-fill me-2 text-warning"></i>Fully Booked Jobs</h5>
-            <p class="text-muted small mb-3">These jobs have filled all their worker positions. You can view them but cannot apply.</p>
-          </div>
-          <div id="stFullJobsList" class="row"></div>
         </div>
 
         <!-- 2. Accepted Shifts -->
@@ -1213,6 +1199,11 @@
           </button>
         </li>
         <li class="nav-item">
+          <button class="nav-link" data-bs-toggle="pill" data-bs-target="#ow-tab-full">
+            <i class="bi bi-people-fill me-1"></i>Fully Booked
+          </button>
+        </li>
+        <li class="nav-item">
           <button class="nav-link" data-bs-toggle="pill" data-bs-target="#ow-tab-transactions">
             <i class="bi bi-receipt me-1"></i>Transactions
           </button>
@@ -1400,6 +1391,15 @@
             <small class="text-muted">Jobs that have passed their application deadline, been cancelled, or completed. Shows all student applicant information.</small>
           </div>
           <div id="owClosedJobsList"></div>
+        </div>
+
+        <!-- Fully Booked Jobs -->
+        <div class="tab-pane fade" id="ow-tab-full">
+          <div class="mb-3">
+            <h5 class="fw-bold mb-2"><i class="bi bi-people-fill me-2 text-warning"></i>Fully Booked Jobs</h5>
+            <p class="text-muted small mb-3">These jobs have filled all their worker positions. You can view them but cannot accept new applicants.</p>
+          </div>
+          <div id="owFullJobsList" class="row"></div>
         </div>
 
 

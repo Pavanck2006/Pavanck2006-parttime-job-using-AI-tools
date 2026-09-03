@@ -9,7 +9,6 @@ const Student = {
     try {
       await this.loadStats();
       await this.loadRecommendedJobs();
-      await this.loadFullJobs();
       await this.loadAvailableJobs();
       await this.loadApplications();
       await this.loadAcceptedJobs();
@@ -163,22 +162,6 @@ const Student = {
       container.innerHTML = jobs.slice(0, 4).map(job => App.renderJobCard(job, 'student')).join('');
     } catch (e) {
       container.innerHTML = '<div class="col-12 text-center text-danger p-3">Failed to load recommendations</div>';
-    }
-  },
-
-  async loadFullJobs() {
-    const container = document.getElementById('stFullJobsList');
-    if (!container) return;
-    try {
-      container.innerHTML = '<div class="col-12 text-center p-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading fully booked jobs...</div>';
-      const jobs = await API.public.getFullJobs();
-      if (!jobs || jobs.length === 0) {
-        container.innerHTML = '<div class="col-12 text-center p-4 text-muted"><i class="bi bi-check-circle fs-2 d-block mb-2"></i>No fully booked jobs at the moment.</div>';
-        return;
-      }
-      container.innerHTML = jobs.map(job => App.renderJobCard(job, 'student', true)).join('');
-    } catch (e) {
-      container.innerHTML = '<div class="col-12 text-center text-danger p-3">Failed to load fully booked jobs</div>';
     }
   },
 
