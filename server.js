@@ -401,6 +401,45 @@ app.delete('/api/student/applications/:id', auth, guard('ROLE_STUDENT'), async (
   } catch (e) { next(e); }
 });
 
+// ─── STUDENT CONFIRM RECEIPT (on-spot payment) ────────────────────────────
+app.put('/api/student/applications/:id/confirm-payment', auth, guard('ROLE_STUDENT'), async (req, res, next) => {
+  try {
+    const data = await transaction(async c => {
+      // Find the application owned by this student
+      const [[app]] = await c.query(
+        `SELECT a.id, a.payment_status, a.status, p.id AS payment_id, p.payment_status AS pay_status, p.amount
+         FROM job_applications a
+         JOIN student_profiles s ON s.id = a.student_id
+         LEFT JOIN payment_records p ON p.application_id = a.id
+         WHERE a.id = ? AND s.user_id = ?`,
+        [req.params.id, req.user.id]
+      );
+      if (!app) throw Object.assign(new Error('Application not found'), {status: 404});
+      if (app.status !== 'ACCEPTED' && app.status !== 'COMPLETED')
+        throw Object.assign(new Error('You can only confirm receipt for accepted or completed jobs'), {status: 400});
+      if (app.pay_status === 'CONFIRMED')
+        throw Object.assign(new Error('Payment has already been confirmed'), {status: 400});
+      if (app.pay_status !== 'PAID' && app.pay_status !== 'PENDING')
+        throw Object.assign(new Error('Payment is not in a confirmable state'), {status: 400});
+
+      // Update payment_records: mark as CONFIRMED
+      await c.query(
+        "UPDATE payment_records SET payment_status='CONFIRMED', confirmed_paid_at=NOW(), notes=COALESCE(?,notes) WHERE id=?",
+        [req.body.notes || null, app.payment_id]
+      );
+
+      // Update job_applications: confirm payment
+      await c.query(
+        "UPDATE job_applications SET payment_status='CONFIRMED', payment_confirmation_date=NOW() WHERE id=?",
+        [app.id]
+      );
+
+      return {confirmed: true, amount: app.amount};
+    });
+    ok(res, data, 'Payment receipt confirmed successfully!');
+  } catch (e) { next(e); }
+});
+
 // ─── STUDENT EARNINGS & TRANSACTION HISTORY ────────────────────────────────
 
 // Get student earnings summary (total earned, pending, this month, etc.)

@@ -9,5 +9,8 @@ node_modules/
 *.log
 npm-debug.log*
 
+# Runtime database files
+data/
+
 # IDE metadata
 .vscode/*.log
