@@ -184,6 +184,24 @@ async function initializeDatabase() {
     }
   }
 
+  // OTP verifications table
+  db.exec(`CREATE TABLE IF NOT EXISTS otp_verifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL,
+    otp_hash TEXT NOT NULL,
+    purpose TEXT NOT NULL DEFAULT 'registration',
+    expires_at TEXT NOT NULL,
+    attempts INTEGER DEFAULT 0,
+    max_attempts INTEGER DEFAULT 5,
+    is_verified INTEGER DEFAULT 0,
+    is_used INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now','localtime')),
+    updated_at TEXT DEFAULT (datetime('now','localtime'))
+  )`);
+  try { db.exec('CREATE INDEX idx_otp_email_purpose ON otp_verifications(email, purpose)'); } catch(e) {}
+  try { db.exec('CREATE INDEX idx_otp_expires ON otp_verifications(expires_at)'); } catch(e) {}
+  try { db.exec('CREATE INDEX idx_otp_created ON otp_verifications(created_at)'); } catch(e) {}
+
   // Add complaint_messages table
   db.exec(`CREATE TABLE IF NOT EXISTS complaint_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

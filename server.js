@@ -6,6 +6,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const {pool, initializeDatabase, transaction} = require('./server/db');
+const otpService = require('./server/otp');
 const chatRouter = require('./server/chat');
 const razorpayRouter = require('./server/razorpay');
 const {createOrUpdateTransaction, updateTransactionStatus, getTransactionDetails, getTransactionsList, getTransactionSummary} = require('./server/transactions');
@@ -33,7 +34,7 @@ const app = express();
 const PORT = Number(process.env.PORT || 8080);
 const SECRET = process.env.JWT_SECRET || 'development-secret-change-me';
 const staticDir = path.join(__dirname, 'src', 'main', 'resources', 'static');
-const otpChallenges = new Map();
+
 
 app.use(express.json({limit: '1mb'}));
 app.use(express.urlencoded({extended: true}));
@@ -78,21 +79,8 @@ function token(user, extra = {}) {
 }
 
 async function sendEmailOtp(destination, code) {
-  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD || !process.env.SMTP_FROM)
-    throw Object.assign(new Error('Email OTP is not configured. Add SMTP settings to .env.'), {status: 503});
-  const nodemailer = require('nodemailer');
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: {user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD}
-  });
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM,
-    to: destination,
-    subject: 'Your PartTime Job verification code',
-    text: `Your verification code is ${code}. It expires in 10 minutes.`
-  });
+  // Delegate to OTP service which handles Nodemailer
+  await otpService.sendEmail(destination, code, otpService.OTP_EXPIRY_MINUTES);
 }
 
 // ─── AUTH ────────────────────────────────────────────────────────────────────
@@ -103,24 +91,26 @@ app.post('/api/auth/request-otp', async (req, res, next) => {
     if (!destination || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destination)) return fail(res, 400, 'Enter a valid email address');
     const [existing] = await pool.query('SELECT id FROM users WHERE email=?', [destination]);
     if (existing[0]) return fail(res, 409, 'That email is already registered');
-    const id = crypto.randomUUID();
-    const code = String(crypto.randomInt(100000, 1000000));
-    await sendEmailOtp(destination, code);
-    otpChallenges.set(id, {destination, code, expiresAt: Date.now() + 10 * 60 * 1000, attempts: 0});
-    ok(res, {verificationId: id, expiresInSeconds: 600}, 'Verification code sent by email');
+    const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
+    const result = await otpService.sendOtp(destination, 'registration', clientIp);
+    if (!result.success) return fail(res, result.status || 500, result.message);
+    // Find the verification ID we just created
+    const [[otpRecord]] = await pool.query(
+      'SELECT id FROM otp_verifications WHERE email=? AND purpose=? ORDER BY created_at DESC LIMIT 1',
+      [destination, 'registration']
+    );
+    ok(res, {verificationId: otpRecord ? String(otpRecord.id) : '0', expiresInSeconds: result.expiresIn}, result.message);
   } catch (e) { next(e); }
 });
 
 app.post('/api/auth/verify-otp', async (req, res, next) => {
   try {
-    const challenge = otpChallenges.get(req.body.verificationId);
+    const email = String(req.body.email || '').trim().toLowerCase();
     const otp = String(req.body.otp || '');
-    if (!challenge || challenge.expiresAt < Date.now()) return fail(res, 400, 'Request a new verification code');
-    if (!/^\d{6}$/.test(otp)) return fail(res, 400, 'OTP must contain exactly 6 digits');
-    if (challenge.attempts >= 5) return fail(res, 429, 'Too many incorrect codes. Request a new code');
-    if (otp !== challenge.code) { challenge.attempts++; return fail(res, 400, 'Incorrect verification code'); }
-    challenge.verified = true;
-    ok(res, null, 'Email verified successfully');
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail(res, 400, 'Enter a valid email address');
+    const result = await otpService.verifyOtp(email, 'registration', otp);
+    if (!result.success) return fail(res, result.status || 500, result.message);
+    ok(res, {verificationId: String(result.verificationId)}, result.message);
   } catch (e) { next(e); }
 });
 
@@ -129,14 +119,16 @@ app.post('/api/auth/register', async (req, res, next) => {
     const b = req.body;
     if (!b.fullName || !b.email || !b.password || !b.phone || !['ROLE_STUDENT', 'ROLE_OWNER'].includes(b.role))
       return fail(res, 400, 'Full name, email, password, phone and a valid role are required');
-    const challenge = otpChallenges.get(b.verificationId);
     const destination = String(b.email).trim().toLowerCase();
-    if (!challenge || !challenge.verified || challenge.destination !== destination || challenge.expiresAt < Date.now())
+    // Verify that email was verified via OTP
+    const verified = await otpService.isVerified(b.verificationId, destination, 'registration');
+    if (!verified)
       return fail(res, 400, 'Verify your email before creating the account');
-    otpChallenges.delete(b.verificationId);
+    // Invalidate the OTP record now that registration is proceeding
+    await otpService.invalidateVerification(b.verificationId);
     const data = await transaction(async c => {
-      const [x] = await c.query('INSERT INTO users (email,password_hash,full_name,phone,role) VALUES (?,?,?,?,?)',
-        [b.email.toLowerCase(), await bcrypt.hash(b.password, 10), b.fullName, b.phone, b.role]);
+      const [x] = await c.query('INSERT INTO users (email,password_hash,full_name,phone,role,is_active) VALUES (?,?,?,?,?,?)',
+        [b.email.toLowerCase(), await bcrypt.hash(b.password, 10), b.fullName, b.phone, b.role, 1]);
       if (b.role === 'ROLE_STUDENT') {
         await c.query('INSERT INTO student_profiles (user_id,college_name,preferred_area,skills,bio,emergency_contact) VALUES (?,?,?,?,?,?)',
           [x.insertId, b.collegeName || null, b.preferredArea || null, b.skills || null, b.bio || null, b.emergencyContact || null]);
@@ -154,12 +146,38 @@ app.post('/api/auth/register', async (req, res, next) => {
   }
 });
 
+app.post('/api/auth/resend-otp', async (req, res, next) => {
+  try {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const purpose = req.body.purpose || 'registration';
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail(res, 400, 'Enter a valid email address');
+    if (purpose === 'registration') {
+      const [existing] = await pool.query('SELECT id FROM users WHERE email=?', [email]);
+      if (existing[0]) return fail(res, 409, 'That email is already registered');
+    }
+    const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
+    const result = await otpService.resendOtp(email, purpose, clientIp);
+    if (!result.success) return fail(res, result.status || 500, result.message);
+    const [[otpRecord]] = await pool.query(
+      'SELECT id FROM otp_verifications WHERE email=? AND purpose=? ORDER BY created_at DESC LIMIT 1',
+      [email, purpose]
+    );
+    ok(res, {verificationId: otpRecord ? String(otpRecord.id) : '0', expiresInSeconds: result.expiresIn}, result.message);
+  } catch (e) { next(e); }
+});
+
 app.post('/api/auth/login', async (req, res, next) => {
   try {
     const [r] = await pool.query('SELECT * FROM users WHERE email=?', [(req.body.email || '').toLowerCase()]);
     const u = r[0];
     if (!u || !(await bcrypt.compare(req.body.password || '', u.password_hash))) return fail(res, 401, 'Invalid email or password');
     if (u.is_suspended || !u.is_active) return fail(res, 403, 'Your account is suspended or inactive');
+    // Check if email was verified via OTP during registration
+    const [[otpVerified]] = await pool.query(
+      'SELECT id FROM otp_verifications WHERE email=? AND purpose=? AND is_verified=1 AND is_used=1 LIMIT 1',
+      [u.email, 'registration']
+    );
+    if (!otpVerified) return fail(res, 403, 'Email verification is required. Please verify your email to continue.');
     let extra = {};
     if (u.role === 'ROLE_STUDENT') {
       const [p] = await pool.query('SELECT preferred_area FROM student_profiles WHERE user_id=?', [u.id]);

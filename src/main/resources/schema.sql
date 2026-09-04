@@ -193,7 +193,25 @@ CREATE TABLE IF NOT EXISTS job_deletion_requests (
     INDEX idx_delreq_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 10. Audit Logs
+-- 10. OTP Verifications
+CREATE TABLE IF NOT EXISTS otp_verifications (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(120) NOT NULL,
+    otp_hash VARCHAR(255) NOT NULL,
+    purpose VARCHAR(30) NOT NULL DEFAULT 'registration',
+    expires_at TIMESTAMP NOT NULL,
+    attempts INT DEFAULT 0,
+    max_attempts INT DEFAULT 5,
+    is_verified BOOLEAN DEFAULT FALSE,
+    is_used BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_otp_email_purpose (email, purpose),
+    INDEX idx_otp_expires (expires_at),
+    INDEX idx_otp_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 11. Audit Logs
 CREATE TABLE IF NOT EXISTS audit_logs (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NULL,

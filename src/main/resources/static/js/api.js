@@ -94,6 +94,12 @@ const API = {
         method: 'POST',
         body: JSON.stringify(payload)
       });
+    },
+    resendOtp(payload) {
+      return API.request('/auth/resend-otp', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
     }
   },
 

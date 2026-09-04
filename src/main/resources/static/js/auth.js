@@ -88,6 +88,8 @@ const Auth = {
     }
   },
 
+  _otpCooldownInterval: null,
+
   async handleRegister() {
     const role = document.querySelector('input[name="registerRole"]:checked').value;
     const fullName = document.getElementById('regFullName').value.trim();
@@ -112,6 +114,7 @@ const Auth = {
       document.getElementById('regOtpGroup').classList.remove('d-none');
       btn.disabled = true;
       btn.innerHTML = '<i class="bi bi-person-check me-2"></i>Create Account';
+      this._startOtpCooldown();
       App.showToast('Verification code sent by email. Check your inbox.', 'info');
     } catch (err) {
       btn.disabled = false;
@@ -166,14 +169,16 @@ const Auth = {
   },
 
   async handleVerifyEmail() {
-    const verificationId = document.getElementById('regVerificationId').value;
+    const email = document.getElementById('regEmail').value.trim();
     const otp = document.getElementById('regOtp').value.trim();
     const btn = document.getElementById('verifyEmailBtn');
-    if (!verificationId) return App.showToast('Request a verification code first.', 'warning');
+    if (!email) return App.showToast('Enter your email address first.', 'warning');
     if (!/^\d{6}$/.test(otp)) return App.showToast('Enter the complete 6-digit OTP.', 'warning');
     try {
       btn.disabled = true;
-      const result = await API.auth.verifyOtp({verificationId, otp});
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Verifying...';
+      const result = await API.auth.verifyOtp({email, otp});
+      document.getElementById('regVerificationId').value = result?.verificationId || '';
       document.getElementById('regEmailVerified').value = 'true';
       document.getElementById('regOtp').disabled = true;
       document.getElementById('regOtpGroup').classList.add('d-none');
@@ -182,6 +187,7 @@ const Auth = {
       App.showToast(result?.message || 'Email verified successfully.', 'success');
     } catch (err) {
       btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-shield-check me-1"></i>Verify Email';
       App.showToast(err.message || 'Email verification failed', 'danger');
     }
   },
@@ -195,6 +201,38 @@ const Auth = {
     document.getElementById('verifyEmailBtn').disabled = false;
     document.getElementById('verifyEmailBtn').innerHTML = '<i class="bi bi-shield-check me-1"></i>Verify Email';
     document.getElementById('registerForm').requestSubmit();
+  },
+
+  _startOtpCooldown(seconds = 60) {
+    this._stopOtpCooldown();
+    const resendBtn = document.getElementById('resendOtpBtn');
+    const timerEl = document.getElementById('otpCooldownTimer');
+    if (!resendBtn) return;
+    let remaining = seconds;
+    resendBtn.disabled = true;
+    resendBtn.classList.add('d-none');
+    if (timerEl) {
+      timerEl.classList.remove('d-none');
+      timerEl.textContent = `Resend OTP in ${remaining}s`;
+    }
+    this._otpCooldownInterval = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) {
+        this._stopOtpCooldown();
+        resendBtn.disabled = false;
+        resendBtn.classList.remove('d-none');
+        if (timerEl) timerEl.classList.add('d-none');
+      } else if (timerEl) {
+        timerEl.textContent = `Resend OTP in ${remaining}s`;
+      }
+    }, 1000);
+  },
+
+  _stopOtpCooldown() {
+    if (this._otpCooldownInterval) {
+      clearInterval(this._otpCooldownInterval);
+      this._otpCooldownInterval = null;
+    }
   },
 
 
